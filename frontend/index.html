@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Travia AI Platform</title>
+    
+    <!-- 1. Tailwind CSS CDN 로드 (스타일링 기반) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 2. Google Fonts: Inter 로드 -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
+    
+    <style>
+      /* index.css의 폰트 설정을 우선 적용합니다. */
+      :root {
+        font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+      }
+    </style>
+</head>
+<body>
+    <!-- React 애플리케이션이 마운트될 DOM 요소 -->
+    <div id="root"></div>
+
+    <!-- 3. 메인 애플리케이션 진입점: src/main.jsx로 지정 (매우 중요!) -->
+    <script type="module" src="/src/main.jsx"></script>
+</body>
+</html>

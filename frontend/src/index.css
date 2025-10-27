@@ -1,0 +1,34 @@
+/* * Tailwind CSS는 이미 HTML 엔트리 포인트에서 로드되었다고 가정하며, 
+ * 이 파일은 기본 리셋 및 폰트 설정을 담당합니다.
+ */
+
+/* 모든 요소에 box-sizing: border-box 적용 */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* 기본 마진/패딩 제거 */
+body, h1, h2, h3, h4, p, figure, blockquote, dl, dd {
+  margin: 0;
+  padding: 0;
+}
+
+/* 기본 폰트 설정 (Tailwind base 설정과 유사) */
+body {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 링크 스타일 초기화 */
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* 컨테이너 기본 설정 (optional) */
+#root {
+  min-height: 100vh;
+}
