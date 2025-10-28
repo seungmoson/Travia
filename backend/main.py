@@ -41,7 +41,10 @@ app.include_router(
 # 3-2. 인증 라우터 (POST /auth/login 등)
 app.include_router(
     auth.router,
-    prefix="/auth",
+    # ▼▼▼▼▼ [수정된 부분] ▼▼▼▼▼
+    # auth.py 파일에 이미 prefix="/auth"가 있으므로, 여기서 중복 선언을 제거합니다.
+    # prefix="/auth", 
+    # ▲▲▲▲▲ [수정 완료] ▲▲▲▲▲
     tags=["Auth"]
 )
 

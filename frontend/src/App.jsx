@@ -1,26 +1,20 @@
-import React, { useState, useEffect } from 'react'; // [수정] useEffect import
+import React, { useState, useEffect } from 'react';
 // [수정] 파일 구조에 맞게 import 경로 수정
 import MainPage from './pages/MainPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import BookingPage from './pages/BookingPage.jsx';
 import DetailPage from './pages/DetailPage.jsx';
 import MyPage from './pages/MyPage.jsx';
-import GuideDashboard from './pages/GuideDashboard.jsx'; // --- ▼ [신규] GuideDashboard 컴포넌트 import ---
-// [수정] 파일 구조에 맞게 import 경로 수정
+import GuideDashboard from './pages/GuideDashboard.jsx'; 
 import { UserIcon } from './assets/Icons.jsx';
-// [수정] 파일 구조에 맞게 import 경로 수정
 import './index.css';
 
 /**
  * 토큰 디코딩 함수 (단순 Base64 디코딩)
- * @param {string} token - JWT 토큰
- * @returns {object | null} 디코딩된 페이로드 (또는 오류 시 null)
  */
 const decodeToken = (token) => {
     try {
-        // 토큰의 payload (두 번째 부분)를 디코딩
         const payloadBase64 = token.split('.')[1];
-        // Base64 URL-safe 문자를 표준 Base64로 변환
         const decodedJson = atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/'));
         const payload = JSON.parse(decodedJson);
         return payload;
@@ -35,56 +29,94 @@ const decodeToken = (token) => {
  * 메인 App 컴포넌트: 전역 상태 관리 및 라우팅 담당 (커스텀 라우팅 구현)
  */
 const App = () => {
-    // Add a log to confirm rendering
     console.log("--- App component is rendering ---");
 
-    // 사용자 상태 관리 (로그인 여부, 사용자명)
+    // [수정] 사용자 상태에 id와 user_type 추가
     const [user, setUser] = useState({
         isLoggedIn: false,
         username: 'Guest',
+        id: null,         // 사용자 ID (BookingBox 비교용)
+        user_type: null,  // 'traveler' 또는 'guide'
     });
 
-    // 페이지 라우팅 상태 (main, login, booking, detail)
+    // 페이지 라우팅 상태
     const [currentPage, setCurrentPage] = useState('main');
     const [currentContentId, setCurrentContentId] = useState(null);
 
-    // [추가] 앱 로드 시 로그인 상태 복원
+    // [수정] 앱 로드 시 모든 로그인 상태 복원
     useEffect(() => {
         const token = localStorage.getItem('token');
-        // [수정] username도 localStorage에서 가져옵니다.
         const storedUsername = localStorage.getItem('username');
+        const storedId = localStorage.getItem('user_id'); // [추가]
+        const storedUserType = localStorage.getItem('user_type'); // [추가]
 
-        if (token && storedUsername) {
+        // [수정] 모든 정보가 있는지 확인
+        if (token && storedUsername && storedId && storedUserType) {
             const payload = decodeToken(token);
             // 토큰 유효성 검사 (만료 시간 확인)
             if (payload && payload.exp * 1000 > Date.now()) {
                 console.log(`Found valid token on load. Restoring user session for: ${storedUsername}`);
-                // [수정] 토큰의 sub(ID) 대신 저장된 username을 사용
-                setUser({ isLoggedIn: true, username: storedUsername });
+                
+                // [수정] id와 user_type도 상태에 저장
+                setUser({ 
+                    isLoggedIn: true, 
+                    username: storedUsername,
+                    id: storedId,           
+                    user_type: storedUserType 
+                });
             } else {
                 console.log("Found expired or invalid token. Clearing storage.");
+                // [수정] 모든 정보 제거
                 localStorage.removeItem('token');
                 localStorage.removeItem('username');
+                localStorage.removeItem('user_id');
+                localStorage.removeItem('user_type');
             }
         }
     }, []); // Empty dependency array means run only once on mount
 
-    // 로그인 처리 함수 (LoginPage에서 호출)
-    const handleLogin = (username) => {
-        console.log("handleLogin called, setting user state to logged in with username:", username); // Add log here
-        setUser({ isLoggedIn: true, username: username });
-        // [수정] localStorage 저장은 LoginPage에서 처리하므로 주석 제거
-        navigateTo('main'); // 로그인 성공 후 메인 페이지로 이동
+    // [수정] 로그인 처리 함수 (LoginPage에서 호출, 인자 없음)
+    const handleLogin = () => {
+        // LoginPage가 저장한 localStorage에서 모든 정보를 읽어옴
+        const token = localStorage.getItem('token');
+        const username = localStorage.getItem('username');
+        const id = localStorage.getItem('user_id');
+        const user_type = localStorage.getItem('user_type');
+
+        if (token && username && id && user_type) {
+            console.log("handleLogin: Reading user info from localStorage", { username, id, user_type });
+            setUser({
+                isLoggedIn: true,
+                username: username,
+                id: id,
+                user_type: user_type
+            });
+            navigateTo('main'); // 로그인 성공 후 메인 페이지로 이동
+        } else {
+            console.error("handleLogin Error: LoginPage did not set all items in localStorage.");
+            // 비정상 상태. 다시 로그인하도록 유도
+            navigateTo('login');
+        }
     };
 
-    // 로그아웃 처리 함수
+    // [수정] 로그아웃 처리 함수
     const handleLogout = () => {
-        console.log("handleLogout called, setting user state to logged out"); // Add log here
-        setUser({ isLoggedIn: false, username: 'Guest' });
-        // [수정] JWT 토큰 키 'token'으로 변경
+        console.log("handleLogout called, setting user state to logged out");
+        
+        // [수정] id와 user_type도 초기화
+        setUser({ 
+            isLoggedIn: false, 
+            username: 'Guest',
+            id: null,
+            user_type: null
+        });
+        
+        // [수정] 모든 사용자 정보 localStorage에서 제거
         localStorage.removeItem('token'); 
-        // [추가] username도 localStorage에서 제거
         localStorage.removeItem('username'); 
+        localStorage.removeItem('user_id'); 
+        localStorage.removeItem('user_type'); 
+        
         setCurrentPage('main');
     };
 
@@ -92,15 +124,11 @@ const App = () => {
      * 페이지 이동 함수 (라우팅 역할)
      */
     const navigateTo = (page, contentId = null) => {
-        // Log navigation attempt and current user state
         console.log(`Navigating to '${page}', contentId: ${contentId}, current user state:`, user);
 
-        // Check login requirement *before* changing page state
-        // [수정] myPage 및 guideDashboard도 로그인 필수 페이지로 추가
+        // 로그인 필수 페이지 확인
         if ((page === 'booking' || page === 'myPage' || page === 'guideDashboard') && !user.isLoggedIn) {
             console.log(`Page '${page}' requires login, redirecting to login page.`);
-            // Store intended destination before redirecting (Optional)
-            // sessionStorage.setItem('intendedBookingId', contentId);
             setCurrentPage('login');
         } else {
             setCurrentPage(page);
@@ -108,59 +136,37 @@ const App = () => {
         }
     };
 
-    // Log user state before rendering page content
     console.log("App component user state before renderPage:", user);
 
     // 현재 페이지 컴포넌트를 렌더링하는 함수
     const renderPage = () => {
         switch (currentPage) {
             case 'login':
-                // Pass the handleLogin function as the 'login' prop
+                // [수정] login prop으로 인자 없는 handleLogin 함수 전달
                 return <LoginPage login={handleLogin} navigateTo={navigateTo} />;
             case 'booking':
-                // BookingPage needs contentId
-                // Note: Consider if BookingPage also needs the user object
                 return <BookingPage contentId={currentContentId} navigateTo={navigateTo} user={user} />;
             case 'detail':
-                // DetailPage needs contentId, navigateTo, and the current user state
+                // [정상] 이제 'id'와 'user_type'이 포함된 user 객체가 전달됨
                 return <DetailPage
                     contentId={currentContentId}
                     navigateTo={navigateTo}
-                    user={user} // Pass the user state as a prop
+                    user={user} 
                 />;
             
-            // --- ▼ [신규] MyPage 라우팅 추가 ▼ ---
             case 'myPage':
                 return <MyPage user={user} navigateTo={navigateTo} />;
-            // --- ▲ 신규 라우팅 완료 ▲ ---
 
-            // --- ▼ [신규] GuideDashboard 라우팅 추가 ▼ ---
             case 'guideDashboard':
                 return <GuideDashboard user={user} navigateTo={navigateTo} />;
-            // --- ▲ 신규 라우팅 완료 ▲ ---
 
             case 'main':
             default:
-                // MainPage needs user state and navigateTo
                 return <MainPage user={user} navigateTo={navigateTo} />;
         }
     };
 
-    // Add useEffect to check for token on initial load (Optional but good practice)
-    /*
-    useEffect(() => {
-        const token = localStorage.getItem('authToken');
-        if (token) {
-            // TODO: Decode token to get username/expiry if needed
-            // For now, just assume logged in if token exists
-            // You might want to verify the token with the backend here
-            console.log("Found auth token on load, setting user as logged in.");
-            // Extract username from token or fetch user details
-            const decodedToken = {}; // Replace with actual decoding logic if needed
-            setUser({ isLoggedIn: true, username: decodedToken.username || 'User' });
-        }
-    }, []); // Empty dependency array means run only once on mount
-    */
+    // ... (useEffect 주석 부분은 동일하므로 생략) ...
 
 
     return (
@@ -181,45 +187,40 @@ const App = () => {
                         {/* 우측 사용자 인터페이스 */}
                         <div className="flex items-center space-x-4">
                             
-                            {/* --- ▼ [수정] 임시 아이콘 2개 제거됨 ▼ --- */}
-                            
                             {user.isLoggedIn ? (
-                                // 로그인 상태 (첫 글자 프로필 아이콘)
+                                // 로그인 상태
                                 <>
                                     <span className="text-gray-700 text-sm font-medium hidden sm:inline">{user.username}님</span>
                                     
-                                    {/* --- ▼ [신규] '내 예약' 버튼 ▼ --- */}
+                                    {/* '내 예약' 버튼 */}
                                     <button
                                         onClick={() => navigateTo('myPage')}
                                         className="w-8 h-8 rounded-full bg-gray-200 hover:bg-gray-300 transition duration-200 flex items-center justify-center shadow-md"
                                         title="내 예약 보기"
                                     >
-                                        {/* 간단한 목록 아이콘 (SVG) */}
                                         <svg className="w-5 h-5 text-gray-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                                         </svg>
                                     </button>
-                                    {/* --- ▲ [신규] 버튼 종료 ▲ --- */}
 
-                                    {/* --- ▼ [신규] '가이드 대시보드' 버튼 ▼ --- */}
-                                    <button
-                                      onClick={() => navigateTo('guideDashboard')}
-                                      className="w-8 h-8 rounded-full bg-gray-200 hover:bg-gray-300 transition duration-200 flex items-center justify-center shadow-md"
-                                      title="가이드 대시보드"
-                                    >
-                                      {/* 가이드 대시보드 아이콘 (SVG) - 기존 placeholder 2번 아이콘 재활용 */}
-                                      <svg className="w-5 h-5 text-gray-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                                         <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v2a4 4 0 004 4h4a2 2 0 002-2v-4M9 17h-2a4 4 0 01-4-4V7a4 4 0 014-4h4a4 4 0 014 4v2" />
-                                      </svg>
-                                    </button>
-                                    {/* --- ▲ [신규] 버튼 종료 ▲ --- */}
+                                    {/* [수정] '가이드 대시보드' 버튼 (user_type이 'guide'일 때만 보임) */}
+                                    {user.user_type === 'guide' && (
+                                        <button
+                                            onClick={() => navigateTo('guideDashboard')}
+                                            className="w-8 h-8 rounded-full bg-gray-200 hover:bg-gray-300 transition duration-200 flex items-center justify-center shadow-md"
+                                            title="가이드 대시보드"
+                                        >
+                                            <svg className="w-5 h-5 text-gray-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v2a4 4 0 004 4h4a2 2 0 002-2v-4M9 17h-2a4 4 0 01-4-4V7a4 4 0 014-4h4a4 4 0 014 4v2" />
+                                            </svg>
+                                        </button>
+                                    )}
 
                                     <button
                                         onClick={handleLogout}
                                         className="w-8 h-8 rounded-full text-white bg-red-500 hover:bg-red-600 transition duration-200 flex items-center justify-center text-sm font-semibold shadow-md"
                                         title={`${user.username}님 로그아웃`}
                                     >
-                                        {/* Ensure username exists before accessing index 0 */}
                                         {user.username ? user.username[0].toUpperCase() : '?'}
                                     </button>
                                 </>
@@ -252,4 +253,3 @@ const App = () => {
 };
 
 export default App;
-

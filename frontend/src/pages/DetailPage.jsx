@@ -39,14 +39,8 @@ function DetailPage({ contentId, navigateTo, user }) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    // --- [로그 제거] ---
-    // console.log("DetailPage received user prop:", user);
-
     // 데이터 페칭 로직
     useEffect(() => {
-        // --- [로그 제거] ---
-        // console.log(`DetailPage useEffect running for contentId: ${contentId}`);
-
         if (!contentId) {
             setError("콘텐츠 ID가 유효하지 않습니다.");
             setLoading(false);
@@ -54,36 +48,27 @@ function DetailPage({ contentId, navigateTo, user }) {
         }
 
         const fetchContentDetail = async () => {
-            // --- [로그 제거] ---
-            // console.log(`Fetching details for content ID: ${contentId}`);
             try {
                 setLoading(true);
                 setError(null);
 
                 const response = await fetch(`${API_BASE_URL}/content/${contentId}`);
-                // --- [로그 제거] ---
-                // console.log(`API response status for ${contentId}: ${response.status}`);
-
+                
                 if (!response.ok) {
                     const errorData = await response.text();
                     throw new Error(`데이터 로딩 실패 (상태: ${response.status}, 응답: ${errorData.substring(0, 100)}...)`);
                 }
 
                 const data = await response.json();
-                // --- [로그 제거] ---
-                // console.log(`Received data for ${contentId}:`, data);
                 setContent(data);
                 setReviews(data.reviews || []);
                 setRelatedContents(data.related_contents || []);
 
             } catch (err) {
-                // [유지] console.error는 실제 오류 로깅을 위해 유지합니다.
                 console.error(`상세 데이터 로딩 중 오류 발생 (ID: ${contentId}):`, err);
                 setError(err.message);
             } finally {
                 setLoading(false);
-                // --- [로그 제거] ---
-                // console.log(`Finished fetching details for content ID: ${contentId}`);
             }
         };
 
@@ -116,8 +101,6 @@ function DetailPage({ contentId, navigateTo, user }) {
 
     // content 데이터 로드 실패 또는 데이터 없음
     if (!content) {
-        // --- [로그 제거] ---
-        // console.log("Content data is null, rendering 'Not Found'.");
         return <div className="p-8 text-center">요청하신 콘텐츠를 찾을 수 없습니다. (ID: {contentId})</div>;
     }
 
@@ -127,9 +110,6 @@ function DetailPage({ contentId, navigateTo, user }) {
 
     return (
         <div className="p-4 sm:p-8">
-            {/* --- [로그 제거] --- */}
-            {/* {console.log(">>> DetailPage rendering JSX, user:", user)} */}
-
             <div className="flex flex-col lg:flex-row gap-8">
 
                 {/* 왼쪽 메인 콘텐츠 (너비 8/12) */}
@@ -146,7 +126,6 @@ function DetailPage({ contentId, navigateTo, user }) {
                             alt={content.title}
                             className="w-full h-auto object-cover rounded-xl shadow-xl"
                             style={{ aspectRatio: '16/9' }}
-                            // 이미지 로드 실패 시 대체 이미지 (선택 사항, getImageUrl에서 이미 처리)
                             onError={(e) => { e.target.onerror = null; e.target.src = DEFAULT_IMAGE_URL; }}
                         />
                     </div>
@@ -155,13 +134,11 @@ function DetailPage({ contentId, navigateTo, user }) {
                     <div className="flex justify-between items-center p-4 bg-white rounded-xl shadow-md">
                         <div className="flex items-center space-x-3">
                             <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
-                                {/* 가이드 이름 첫 글자 (없으면 ?) */}
                                 <span className="text-lg font-bold text-indigo-600">{guideName ? guideName[0].toUpperCase() : '?'}</span>
                             </div>
                             <div>
                                 <p className="font-semibold text-gray-800">가이드: {guideName}</p>
                                 <div className="text-sm text-gray-500 flex items-center space-x-1">
-                                    {/* DB에서 가져온 평점/리뷰 수 사용 */}
                                     <span>⭐ {content.rating ? content.rating.toFixed(1) : 'N/A'}</span>
                                     <span>|</span>
                                     <span>{content.review_count || 0} 리뷰</span>
@@ -213,8 +190,19 @@ function DetailPage({ contentId, navigateTo, user }) {
                 {/* 오른쪽 예약 박스 (너비 4/12) */}
                 <div className="w-full lg:w-4/12">
                     <div className="lg:sticky lg:top-20 space-y-6">
-                        {/* BookingBox 컴포넌트에 필요한 props 전달 */}
-                        <BookingBox user={user} navigateTo={navigateTo} contentId={contentId} />
+                        
+                        {/* ▼▼▼▼▼ [수정된 부분] ▼▼▼▼▼ */}
+                        {/* BookingBox 컴포넌트에 contentAuthorId prop 추가 */}
+                        <BookingBox 
+                            user={user} 
+                            navigateTo={navigateTo} 
+                            contentId={contentId} 
+                            // [수정] 스키마(models.py)에 따라 
+                            // content의 작성자 ID는 'guide_id'입니다.
+                            contentAuthorId={content?.guide_id} 
+                        />
+                        {/* ▲▲▲▲▲ [수정된 부분] ▲▲▲▲▲ */}
+
 
                         {/* 관련 콘텐츠 (sticky 내부) */}
                         <div className="space-y-6">
@@ -234,4 +222,3 @@ function DetailPage({ contentId, navigateTo, user }) {
 }
 
 export default DetailPage;
-

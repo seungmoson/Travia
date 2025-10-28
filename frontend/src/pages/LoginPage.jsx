@@ -3,9 +3,29 @@ import React, { useState } from 'react';
 // FastAPI 서버의 주소
 const API_BASE_URL = 'http://localhost:8000'; 
 
+// ▼▼▼ [신규] App.jsx에서 decodeToken 함수 복사 ▼▼▼
+/**
+ * 토큰 디코딩 함수 (단순 Base64 디코딩)
+ * @param {string} token - JWT 토큰
+ * @returns {object | null} 디코딩된 페이로드 (또는 오류 시 null)
+ */
+const decodeToken = (token) => {
+    try {
+        const payloadBase64 = token.split('.')[1];
+        const decodedJson = atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/'));
+        const payload = JSON.parse(decodedJson);
+        return payload;
+    } catch (error) {
+        console.error("Invalid token:", error);
+        return null;
+    }
+};
+// ▲▲▲ [신규] 함수 복사 완료 ▲▲▲
+
+
 /**
  * 로그인 페이지 컴포넌트
- * @param {function} login - App.jsx에서 받은 'handleLogin' 함수
+ * @param {function} login - App.jsx에서 받은 'handleLogin' 함수 (인자 없음)
  * @param {function} navigateTo - 페이지 이동 함수
  */
 const LoginPage = ({ login, navigateTo }) => {
@@ -19,13 +39,13 @@ const LoginPage = ({ login, navigateTo }) => {
         setErrorMessage('');
         setLoading(true);
 
-        // 🚨 Seed Data에 정의된 계정으로 테스트하세요: traveler@travia.com / testpass123
         const loginPayload = {
             email: email,
-            password: password, // 평문 비밀번호 전송
+            password: password,
         };
 
         try {
+            // --- 1단계: 로그인 API 호출 (토큰 받기) ---
             const response = await fetch(`${API_BASE_URL}/auth/login`, {
                 method: 'POST',
                 headers: {
@@ -34,32 +54,49 @@ const LoginPage = ({ login, navigateTo }) => {
                 body: JSON.stringify(loginPayload),
             });
 
-            const result = await response.json();
+            const loginResult = await response.json();
 
-            if (response.ok) {
-                // [수정] 
-                // 1. 로그인 성공 시 받은 JWT 토큰과 username을 localStorage에 저장합니다.
-                if (result.access_token) {
-                    const username = email.split('@')[0]; // 임시 닉네임
-                    
-                    localStorage.setItem('token', result.access_token);
-                    // [추가] username도 localStorage에 저장
-                    localStorage.setItem('username', username); 
-                    
-                    // 2. App.jsx의 상태 업데이트
-                    login(username);
-
-                } else {
-                    // 서버가 200 OK를 보냈지만 토큰이 없는 예외 케이스
-                    setErrorMessage(result.detail || '로그인 응답 형식이 올바르지 않습니다.');
-                    return; 
-                }
-                
-            } else {
-                // 로그인 실패 (400 Bad Request 등)
-                setErrorMessage(result.detail || '로그인에 실패했습니다. 이메일과 비밀번호를 확인해 주세요.');
+            if (!response.ok || !loginResult.access_token) {
+                setErrorMessage(loginResult.detail || '로그인에 실패했습니다. 이메일과 비밀번호를 확인해 주세요.');
+                setLoading(false);
+                return;
             }
+            
+            // --- 2단계: 토큰 확보 및 디코딩 ---
+            const token = loginResult.access_token;
+            const payload = decodeToken(token); // [수정] 토큰 즉시 디코딩
+
+            if (!payload) {
+                setErrorMessage("토큰 디코딩에 실패했습니다. 토큰 형식이 잘못되었습니다.");
+                setLoading(false);
+                return;
+            }
+
+            // --- 3단계: 모든 정보 localStorage에 저장 ---
+            
+            // [수정] payload에서 직접 사용자 정보를 추출합니다.
+            // (백엔드 스키마/JWT 설정에 따라 키 이름이 다를 수 있습니다)
+            // 가정: 'sub' = id, 'nickname' = username, 'user_type' = user_type
+            const userId = payload.id || payload.sub; // 'id' 혹은 'sub' (표준)
+            const username = payload.nickname; // 스키마(models.py)의 'nickname'
+            const userType = payload.user_type; // 스키마(models.py)의 'user_type'
+
+            if (userId && username && userType) {
+                localStorage.setItem('token', token);
+                localStorage.setItem('username', username);
+                localStorage.setItem('user_id', userId);
+                localStorage.setItem('user_type', userType);
+
+                // --- 4단계: App.jsx 상태 업데이트 ---
+                login(); // App.jsx의 handleLogin이 localStorage에서 모든 정보를 읽어감
+            
+            } else {
+                console.error("Token payload missing required fields:", payload);
+                setErrorMessage("로그인 성공했으나, 토큰에 필수 정보(id, nickname, user_type)가 없습니다.");
+            }
+
         } catch (error) {
+            // 1단계 (로그인) 네트워크 오류
             console.error('Login request failed:', error);
             setErrorMessage('네트워크 연결 또는 서버 오류가 발생했습니다.');
         } finally {
@@ -111,7 +148,6 @@ const LoginPage = ({ login, navigateTo }) => {
                 </form>
                 <div className="text-center text-sm">
                     <button 
-                        // [수정] App.jsx의 라우팅 키에 맞게 '/' -> 'main'으로 변경
                         onClick={() => navigateTo('main')}
                         className="font-medium text-indigo-600 hover:text-indigo-500"
                     >
@@ -124,4 +160,3 @@ const LoginPage = ({ login, navigateTo }) => {
 };
 
 export default LoginPage;
-

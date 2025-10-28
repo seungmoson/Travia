@@ -17,6 +17,10 @@ class ContentListSchema(BaseModel):
     # 조인해서 가져오는 필드
     guide_nickname: str = Field(..., description="가이드 닉네임")
     main_image_url: Optional[str] = Field(None, description="메인 이미지 URL")
+    
+    # ▼▼▼ [수정] BookingBox 비교를 위해 guide_id 추가 ▼▼▼
+    guide_id: int = Field(..., description="콘텐츠 작성자(가이드)의 User ID")
+    # ▲▲▲ [수정 완료] ▲▲▲
 
     class Config:
         from_attributes = True
@@ -45,6 +49,8 @@ class RelatedContentSchema(BaseModel):
         from_attributes = True
 
 # Content 상세 정보 조회 시 응답 스키마 (DetailPage용)
+# [참고] ContentListSchema를 상속받았으므로,
+# ContentDetailSchema도 이제 'guide_id' 필드를 갖게 됩니다.
 class ContentDetailSchema(ContentListSchema):
     guide_name: Optional[str] = Field(None, description="가이드 이름 (DetailPage용)")
     created_at: Optional[datetime] = None

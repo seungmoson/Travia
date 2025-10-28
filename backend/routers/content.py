@@ -4,27 +4,27 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List
-from datetime import datetime # 👈 datetime 모듈 import
-import random               # 👈 random 모듈 import
+from datetime import datetime 
+import random 
 
 from database import get_db
 from models import Content, GuideProfile, User, ContentImage, Booking, Review, Tag, ContentTag
+# [수정] schemas import 수정 (이전 답변에서 schemas.py를 수정했으므로)
 from schemas import ContentListSchema, ContentDetailSchema, ReviewSchema, RelatedContentSchema
 
 # 1. APIRouter 인스턴스 생성
 router = APIRouter()
 
 # 2. GET /list 엔드포인트 정의 (MainPage용)
-# --- ▼ [임시 수정] response_model 부분을 주석 처리하여 검증 비활성화 ---
+# [참고] response_model 검증을 다시 활성화하는 것이 좋습니다.
 # @router.get("/list", response_model=List[ContentListSchema])
-@router.get("/list") # 👈 response_model 제거
-# --- 수정 끝 ---
+@router.get("/list") # 👈 일단은 response_model 제거된 상태 유지
 def get_content_list(db: Session = Depends(get_db)):
     """
     상태가 'Active'인 모든 콘텐츠의 목록을 조회하고
     가이드 닉네임 및 메인 이미지 URL을 포함하여 반환합니다.
     """
-
+    # [수정] ContentListSchema에 guide_id가 추가되었으므로 쿼리에도 추가
     results = db.query(
         Content.id,
         Content.title,
@@ -32,7 +32,8 @@ def get_content_list(db: Session = Depends(get_db)):
         Content.price,
         Content.location,
         User.nickname.label("guide_nickname"),
-        ContentImage.image_url.label("main_image_url")
+        ContentImage.image_url.label("main_image_url"),
+        Content.guide_id # 👈 [추가] guide_id 쿼리
     ).join(
         GuideProfile, Content.guide_id == GuideProfile.users_id
     ).join(
@@ -44,25 +45,21 @@ def get_content_list(db: Session = Depends(get_db)):
     ).all()
 
     content_list = []
-    # 
     for row in results:
-        # Pydantic 모델로 변환 (오류 발생 가능성 확인)
         try:
             schema_instance = ContentListSchema(
                 id=row.id,
                 title=row.title,
-                description=row.description if row.description else "설명 없음", # None 방지
-                price=row.price if row.price is not None else 0, # None 방지
-                location=row.location if row.location else "미정", # None 방지
-                guide_nickname=row.guide_nickname if row.guide_nickname else "정보 없음", # None 방지
-                main_image_url=row.main_image_url # Optional이므로 None 가능
+                description=row.description if row.description else "설명 없음",
+                price=row.price if row.price is not None else 0,
+                location=row.location if row.location else "미정",
+                guide_nickname=row.guide_nickname if row.guide_nickname else "정보 없음",
+                main_image_url=row.main_image_url,
+                guide_id=row.guide_id # 👈 [추가] guide_id 매핑
             )
             content_list.append(schema_instance)
         except Exception as e:
-            # 개별 항목 변환 중 오류 발생 시 로깅 (디버깅용)
             print(f"Error converting content ID {row.id} to schema: {e}")
-            # 오류 발생 시 해당 항목은 건너뛰거나 기본값으로 처리 가능
-            # 여기서는 건너뛰도록 pass 사용 (또는 기본값 append)
             pass 
 
     return content_list
@@ -86,11 +83,13 @@ def get_content_detail(content_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="해당 ID의 콘텐츠를 찾을 수 없습니다.")
 
     # 3. 가이드 정보 (Lazy Loading 사용)
-    guide_name = "공식 가이드"
+    guide_name = "공식 가이드" # 기본값
+    guide_nickname = "정보 없음" # 기본값 (ContentListSchema에서 상속받은 필드용)
     if content.guide and content.guide.user:
-        guide_name = content.guide.user.nickname
+        guide_name = content.guide.user.nickname # DetailSchema용
+        guide_nickname = content.guide.user.nickname # ListSchema용
 
-    # 4. 메인 이미지 (models.py: contents_id)
+    # 4. 메인 이미지 
     main_image_url = db.query(ContentImage.image_url).filter(
         ContentImage.contents_id == content_id,
         ContentImage.is_main == True
@@ -112,11 +111,11 @@ def get_content_detail(content_id: int, db: Session = Depends(get_db)):
     for review in review_results:
         profile_age_str = "정보 없음"
         if review.reviewer and review.reviewer.created_at:
-             delta_days = (datetime.now() - review.reviewer.created_at).days
-             if delta_days < 30:
-                 profile_age_str = f"가입 {delta_days}일차"
-             else:
-                 profile_age_str = f"가입 {delta_days // 30}개월차"
+            delta_days = (datetime.now() - review.reviewer.created_at).days
+            if delta_days < 30:
+                profile_age_str = f"가입 {delta_days}일차"
+            else:
+                profile_age_str = f"가입 {delta_days // 30}개월차"
 
         reviews_data.append(ReviewSchema(
             id=review.id,
@@ -145,8 +144,8 @@ def get_content_detail(content_id: int, db: Session = Depends(get_db)):
             id=r.id,
             title=r.title,
             price=f"{r.price:,}" if r.price is not None else "문의",
-            rating=round(random.uniform(4.0, 5.0), 1),
-            time="2시간 소요", # 임시
+            rating=round(random.uniform(4.0, 5.0), 1), # 임시 평점
+            time="2시간 소요", # 임시 시간
             imageUrl=r.imageUrl
         ) for r in related_results
     ]
@@ -155,7 +154,7 @@ def get_content_detail(content_id: int, db: Session = Depends(get_db)):
     tag_results = db.query(Tag).join(
         ContentTag, Tag.id == ContentTag.tag_id
     ).filter(
-        ContentTag.contents_id == content_id # models.py 확인 필요
+        ContentTag.contents_id == content_id
     ).all()
     
     tags_data = [tag.name for tag in tag_results]
@@ -181,14 +180,18 @@ def get_content_detail(content_id: int, db: Session = Depends(get_db)):
         status=content.status,
 
         main_image_url=main_image_url,
-        guide_name=guide_name,
-        guide_nickname=guide_name, # ContentListSchema가 상속받았으므로 필요
+        guide_name=guide_name, # DetailSchema 필드
+        guide_nickname=guide_nickname, # ListSchema 상속 필드
+        
+        # ▼▼▼ [수정] guide_id 필드 추가 ▼▼▼
+        guide_id=content.guide_id, 
+        # ▲▲▲ [수정 완료] ▲▲▲
 
         reviews=reviews_data,
         related_contents=related_contents_data,
 
         # 추가된 필드들
         tags=tags_data,
-        rating=round(rating_stats.avg_rating, 1) if rating_stats and rating_stats.avg_rating else 4.0,
-        review_count=rating_stats.review_count if rating_stats and rating_stats.review_count else 0
+        rating=round(rating_stats.avg_rating, 1) if rating_stats and rating_stats.avg_rating else 4.0, # 기본값 4.0
+        review_count=rating_stats.review_count if rating_stats and rating_stats.review_count else 0 # 기본값 0
     )
