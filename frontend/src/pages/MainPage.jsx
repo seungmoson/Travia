@@ -1,9 +1,14 @@
-import React, { useState, useEffect } from 'react';
-// 💡 오류 해결: 명시적으로 확장자를 포함하거나, 폴더 이름만 사용 (여기서는 일반적인 방식을 따릅니다.)
+// [수정] useCallback, useRef 훅 추가
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+// --- ▼ [수정] import 경로에서 .jsx 확장자 제거 (Vite가 처리하도록) ▼ ---
 import ContentList from '../components/ContentList'; 
+// --- ▲ [수정 완료] ▲ ---
+// [추가] 로딩 스피너
+import { ThreeDots } from 'react-loader-spinner'; // (npm install react-loader-spinner 필요)
 
-// 🚨 FastAPI 서버 주소: 실행 중인 서버의 주소로 설정합니다.
 const API_BASE_URL = 'http://localhost:8000'; 
+// [추가] 페이지당 불러올 콘텐츠 개수 (백엔드 기본값과 일치)
+const CONTENTS_PER_PAGE = 9;
 
 /**
  * 메인 콘텐츠 페이지 (로그인 없이 접근 가능)
@@ -13,44 +18,127 @@ const API_BASE_URL = 'http://localhost:8000';
 const MainPage = ({ user, navigateTo }) => {
     // 1. 상태 정의: contents, loading, error
     const [contents, setContents] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(true); // 초기 로딩
     const [error, setError] = useState(null);
 
+    // --- ▼ [신규 추가] 무한 스크롤 상태 ▼ ---
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalCount, setTotalCount] = useState(0);
+    const [loadingMore, setLoadingMore] = useState(false); // 추가 로딩
+    const [hasMore, setHasMore] = useState(true); // 더 불러올 콘텐츠가 있는지
+    const observerRef = useRef(null); // 스크롤 감지용 Ref
+    // --- ▲ [신규 추가 완료] ▲ ---
+
+    // --- ▼ [수정] 초기 콘텐츠 로드 (1페이지만) ▼ ---
     useEffect(() => {
-        // API 호출을 위한 비동기 함수 정의
         const fetchContents = async () => {
             try {
                 setLoading(true);
-                setError(null);   
+                setError(null);
+                setCurrentPage(1); // 페이지 초기화
+                setHasMore(true); // 더보기 상태 초기화
+                setContents([]); // [추가] 목록 초기화
 
-                // GET /content/list 엔드포인트 호출
-                const response = await fetch(`${API_BASE_URL}/content/list`);
+                // GET /content/list?page=1&per_page=9
+                const response = await fetch(`${API_BASE_URL}/content/list?page=1&per_page=${CONTENTS_PER_PAGE}`);
 
                 if (!response.ok) {
                     throw new Error(`HTTP Error! Status: ${response.status}`);
                 }
 
-                const data = await response.json();
+                // [수정] 백엔드 응답 형식 변경 { contents: [...], total_count: N }
+                const data = await response.json(); 
                 
-                // 2. 성공: DB에서 가져온 실제 데이터로 상태 업데이트
-                setContents(data); 
+                // 2. 성공: 1페이지 데이터와 전체 개수 설정
+                const initialContents = data.contents || [];
+                setContents(initialContents); 
+                const totalContentCount = data.total_count || 0;
+                setTotalCount(totalContentCount);
+                // 더 불러올 콘텐츠가 있는지 확인
+                setHasMore(initialContents.length < totalContentCount);
 
             } catch (e) {
                 console.error("Content list fetching failed:", e);
                 setError("콘텐츠 목록을 불러오는 데 실패했습니다. 서버 상태를 확인하세요.");
+                setHasMore(false);
             } finally {
-                setLoading(false); // 요청 완료 후 로딩 상태 해제
+                setLoading(false); // 초기 로딩 완료
             }
         };
 
         fetchContents();
-    }, []); 
+    }, []); // 마운트 시 1회만 실행
+    // --- ▲ [수정 완료] ▲ ---
+
+    // --- ▼ [신규 추가] 추가 콘텐츠 로드 함수 ▼ ---
+    const loadMoreContents = useCallback(async () => {
+        if (loadingMore || !hasMore) return;
+
+        setLoadingMore(true);
+        const nextPage = currentPage + 1;
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/content/list?page=${nextPage}&per_page=${CONTENTS_PER_PAGE}`);
+            if (!response.ok) throw new Error("Failed to fetch more contents");
+
+            const data = await response.json(); // { contents: [...], total_count: N }
+            const newContents = data.contents || [];
+
+            if (newContents.length > 0) {
+                setContents(prevContents => {
+                    const existingIds = new Set(prevContents.map(c => c.id));
+                    const uniqueNew = newContents.filter(c => !existingIds.has(c.id));
+                    const updatedContents = [...prevContents, ...uniqueNew];
+                    // 갱신된 길이를 기준으로 hasMore 상태 업데이트
+                    setHasMore(updatedContents.length < totalCount);
+                    return updatedContents;
+                });
+                setCurrentPage(nextPage);
+            } else {
+                setHasMore(false); // 서버에서 빈 배열을 반환하면 더 이상 없음
+            }
+
+        } catch (err) {
+            console.error("Failed to load more contents:", err);
+            setHasMore(false); // 에러 발생 시 중단
+        } finally {
+            setLoadingMore(false);
+        }
+    }, [loadingMore, hasMore, currentPage, totalCount]);
+    // --- ▲ [신규 추가 완료] ▲ ---
+
+    // --- ▼ [신규 추가] Intersection Observer 설정 ▼ ---
+    useEffect(() => {
+        // 초기 로딩 중이거나, ref가 없으면 Observer 설정 안함
+        if (loading || !observerRef.current) return () => {};
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                // 타겟이 보이고, 추가 로딩 중이 아니며, 더 불러올 게 있을 때
+                if (entries[0].isIntersecting && !loadingMore && hasMore) {
+                    loadMoreContents();
+                }
+            },
+            { threshold: 0.1 } // 타겟이 10% 보일 때
+        );
+
+        const currentObserverRef = observerRef.current;
+        observer.observe(currentObserverRef);
+
+        return () => {
+            if (currentObserverRef) {
+                observer.unobserve(currentObserverRef);
+            }
+        };
+    }, [loading, loadMoreContents, loadingMore, hasMore]);
+    // --- ▲ [신규 추가 완료] ▲ ---
+
     
     // --- 로딩 및 오류 상태 렌더링 ---
-    if (loading) {
+    if (loading && currentPage === 1) { // [수정] 초기 로딩 시에만
         return (
             <div className="flex justify-center items-center h-screen bg-gray-50">
-                <p className="text-xl text-indigo-600 font-semibold">투어 목록을 불러오는 중입니다...</p>
+                <ThreeDots color="#4f46e5" height={80} width={80} />
             </div>
         );
     }
@@ -66,7 +154,7 @@ const MainPage = ({ user, navigateTo }) => {
     }
     
     // DB 연결은 됐으나, Active 상태인 콘텐츠가 없을 경우
-    if (contents.length === 0) {
+    if (!loading && contents.length === 0) {
         return (
              <div className="p-8 text-center bg-yellow-100 border border-yellow-400 text-yellow-700 rounded-lg m-8">
                 <h1 className="text-2xl font-bold mb-2">등록된 콘텐츠 없음</h1>
@@ -79,7 +167,7 @@ const MainPage = ({ user, navigateTo }) => {
     return (
         <div className="p-4 sm:p-6 md:p-8 space-y-6">
             
-            {/* 상단 검색 및 필터 영역 (로직만 비활성화) */}
+            {/* 상단 검색 및 필터 영역 (기존과 동일) */}
             <div className="bg-white rounded-xl shadow-lg p-5 space-y-4">
                 {/* 검색창 */}
                 <div className="flex items-center border border-gray-300 rounded-lg p-2 focus-within:ring-2 focus-within:ring-indigo-500 transition duration-200">
@@ -105,13 +193,29 @@ const MainPage = ({ user, navigateTo }) => {
             </div>
 
             <h1 className="text-2xl font-bold text-gray-800 pt-4">
-                추천 콘텐츠 ({user.isLoggedIn ? user.username : '게스트'})
+                {/* [수정] 전체 개수 표시 */}
+                추천 콘텐츠 ({totalCount || 0}개)
             </h1>
 
-            {/* ContentList 컴포넌트에 DB에서 가져온 실제 contents 배열을 전달 */}
+            {/* ContentList 컴포넌트에 현재 로드된 contents 배열 전달 */}
             <ContentList contents={contents} user={user} navigateTo={navigateTo} />
+
+            {/* --- ▼ [신규 추가] 무한 스크롤 로더 및 타겟 ▼ --- */}
+            {/* [수정] 전체 개수가 페이지당 개수보다 클 때만 로더 표시 */}
+            {totalCount > CONTENTS_PER_PAGE && (
+                <div ref={observerRef} className="h-20 flex justify-center items-center">
+                    {loadingMore && (
+                        <ThreeDots color="#4f46e5" height={40} width={40} />
+                    )}
+                    {!loadingMore && !hasMore && contents.length > 0 && (
+                        <p className="text-sm text-gray-500">모든 콘텐츠를 불러왔습니다.</p>
+                    )}
+                </div>
+            )}
+            {/* --- ▲ [신규 추가 완료] ▲ --- */}
         </div>
     );
 };
 
 export default MainPage;
+

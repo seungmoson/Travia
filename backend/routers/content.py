@@ -1,30 +1,42 @@
 # app/routers/content.py
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from typing import List
-from datetime import datetime 
-import random 
+from datetime import datetime
+import random
 
 from database import get_db
 from models import Content, GuideProfile, User, ContentImage, Booking, Review, Tag, ContentTag
-# [수정] schemas import 수정 (이전 답변에서 schemas.py를 수정했으므로)
-from schemas import ContentListSchema, ContentDetailSchema, ReviewSchema, RelatedContentSchema
+# --- ▼ [수정] ContentListResponse 스키마 임포트 ▼ ---
+from schemas import (
+    ContentListSchema, ContentDetailSchema, ReviewSchema, RelatedContentSchema,
+    ContentListResponse
+)
+# --- ▲ [수정 완료] ▲ ---
 
 # 1. APIRouter 인스턴스 생성
 router = APIRouter()
 
 # 2. GET /list 엔드포인트 정의 (MainPage용)
-# [참고] response_model 검증을 다시 활성화하는 것이 좋습니다.
-# @router.get("/list", response_model=List[ContentListSchema])
-@router.get("/list") # 👈 일단은 response_model 제거된 상태 유지
-def get_content_list(db: Session = Depends(get_db)):
+# --- ▼ [수정] 페이지네이션 적용 및 반환 스키마 변경 ▼ ---
+@router.get("/list", response_model=ContentListResponse)
+def get_content_list(
+    db: Session = Depends(get_db),
+    page: int = Query(1, ge=1, description="페이지 번호"),
+    per_page: int = Query(9, ge=1, le=50, description="페이지당 콘텐츠 개수 (기본 9개)")
+):
     """
-    상태가 'Active'인 모든 콘텐츠의 목록을 조회하고
-    가이드 닉네임 및 메인 이미지 URL을 포함하여 반환합니다.
+    상태가 'Active'인 모든 콘텐츠의 목록을 **페이지네이션**하여 조회하고
+    가이드 닉네임, 메인 이미지 URL, **전체 개수**를 포함하여 반환합니다.
     """
-    # [수정] ContentListSchema에 guide_id가 추가되었으므로 쿼리에도 추가
+    
+    # 1. 전체 개수 쿼리 (페이지네이션 전에)
+    total_count_query = db.query(func.count(Content.id)).filter(Content.status == "Active")
+    total_count = total_count_query.scalar() or 0
+
+    # 2. 실제 목록 쿼리 (페이지네이션 적용)
     results = db.query(
         Content.id,
         Content.title,
@@ -33,7 +45,7 @@ def get_content_list(db: Session = Depends(get_db)):
         Content.location,
         User.nickname.label("guide_nickname"),
         ContentImage.image_url.label("main_image_url"),
-        Content.guide_id # 👈 [추가] guide_id 쿼리
+        Content.guide_id
     ).join(
         GuideProfile, Content.guide_id == GuideProfile.users_id
     ).join(
@@ -42,8 +54,15 @@ def get_content_list(db: Session = Depends(get_db)):
         ContentImage, (Content.id == ContentImage.contents_id) & (ContentImage.is_main == True)
     ).filter(
         Content.status == "Active"
+    ).order_by( # [추가] 정렬 기준 (예: 최신순)
+        Content.created_at.desc()
+    ).offset( # 페이지네이션
+        (page - 1) * per_page
+    ).limit(
+        per_page
     ).all()
 
+    # 3. 스키마 변환
     content_list = []
     for row in results:
         try:
@@ -55,25 +74,41 @@ def get_content_list(db: Session = Depends(get_db)):
                 location=row.location if row.location else "미정",
                 guide_nickname=row.guide_nickname if row.guide_nickname else "정보 없음",
                 main_image_url=row.main_image_url,
-                guide_id=row.guide_id # 👈 [추가] guide_id 매핑
+                guide_id=row.guide_id
             )
             content_list.append(schema_instance)
         except Exception as e:
             print(f"Error converting content ID {row.id} to schema: {e}")
-            pass 
 
-    return content_list
+    # 4. 최종 응답 반환 (ContentListResponse 객체 사용)
+    return ContentListResponse(
+        contents=content_list,
+        total_count=total_count
+    )
+# --- ▲ [수정 완료] ▲ ---
 
 
 # 3. GET /{content_id} 상세 조회 엔드포인트 (DetailPage용)
 @router.get("/{content_id}", response_model=ContentDetailSchema)
-def get_content_detail(content_id: int, db: Session = Depends(get_db)):
+def get_content_detail(
+    content_id: int,
+    # 리뷰 페이지네이션 쿼리 파라미터
+    reviews_page: int = Query(1, ge=1, description="리뷰 목록 페이지 번호"),
+    reviews_per_page: int = Query(5, ge=1, le=50, description="페이지당 리뷰 개수"),
+    # 관련 콘텐츠 페이지네이션 쿼리 파라미터
+    related_page: int = Query(1, ge=1, description="관련 콘텐츠 목록 페이지 번호"),
+    related_per_page: int = Query(4, ge=1, le=20, description="페이지당 관련 콘텐츠 개수"),
+    db: Session = Depends(get_db)
+):
     """
     특정 ID의 콘텐츠 상세 정보를 실제 DB에서 쿼리하여 반환합니다.
+    **리뷰 목록 및 관련 콘텐츠 목록은 페이지네이션 처리됩니다.**
     """
 
-    # 1. 기본 콘텐츠 상세 정보 조회
-    content = db.query(Content).filter(
+    # 1. 기본 콘텐츠 상세 정보 조회 (가이드 정보 즉시 로드)
+    content = db.query(Content).options(
+        joinedload(Content.guide).joinedload(GuideProfile.user)
+    ).filter(
         Content.id == content_id,
         Content.status == "Active"
     ).first()
@@ -82,50 +117,75 @@ def get_content_detail(content_id: int, db: Session = Depends(get_db)):
     if not content:
         raise HTTPException(status_code=404, detail="해당 ID의 콘텐츠를 찾을 수 없습니다.")
 
-    # 3. 가이드 정보 (Lazy Loading 사용)
-    guide_name = "공식 가이드" # 기본값
-    guide_nickname = "정보 없음" # 기본값 (ContentListSchema에서 상속받은 필드용)
+    # 3. 가이드 정보 추출
+    guide_name = "공식 가이드"
+    guide_nickname = "정보 없음"
+    guide_avg_rating = None
     if content.guide and content.guide.user:
-        guide_name = content.guide.user.nickname # DetailSchema용
-        guide_nickname = content.guide.user.nickname # ListSchema용
+        guide_name = content.guide.user.nickname
+        guide_nickname = content.guide.user.nickname
+        guide_avg_rating = content.guide.avg_rating
 
-    # 4. 메인 이미지 
+    # 4. 메인 이미지
     main_image_url = db.query(ContentImage.image_url).filter(
         ContentImage.contents_id == content_id,
         ContentImage.is_main == True
     ).scalar()
 
-    # 5. 실제 리뷰 데이터 쿼리
-    review_results = db.query(Review).join(
-        Booking, Review.booking_id == Booking.id
+    # 5. 리뷰 쿼리 (페이지네이션 적용)
+    # 5-1. 전체 리뷰 개수 및 평균 평점 계산
+    content_rating_stats = db.query(
+        func.avg(Review.rating).label("avg_rating"),
+        func.count(Review.id).label("total_reviews_count")
     ).join(
-        User, Review.reviewer_id == User.id
+        Booking, Review.booking_id == Booking.id
+    ).filter(
+        Booking.content_id == content_id
+    ).first()
+
+    total_reviews_count = content_rating_stats.total_reviews_count if content_rating_stats else 0
+    avg_content_rating = round(float(content_rating_stats.avg_rating), 1) if content_rating_stats and content_rating_stats.avg_rating is not None else 4.0
+
+    # 5-2. 요청된 페이지의 리뷰 목록 쿼리
+    review_results = db.query(Review).options(
+        joinedload(Review.reviewer) # Review.reviewer (User) 관계 로드
+    ).join(
+        Booking, Review.booking_id == Booking.id
     ).filter(
         Booking.content_id == content_id
     ).order_by(
         Review.created_at.desc()
-    ).limit(5).all()
+    ).offset(
+        (reviews_page - 1) * reviews_per_page
+    ).limit(
+        reviews_per_page
+    ).all()
 
-    # ReviewSchema에 맞게 변환
+    # ReviewSchema 변환
     reviews_data = []
     for review in review_results:
-        profile_age_str = "정보 없음"
-        if review.reviewer and review.reviewer.created_at:
-            delta_days = (datetime.now() - review.reviewer.created_at).days
-            if delta_days < 30:
-                profile_age_str = f"가입 {delta_days}일차"
-            else:
-                profile_age_str = f"가입 {delta_days // 30}개월차"
+        try:
+            # model_validate 대신 수동으로 생성 (alias 'user' 사용)
+            reviews_data.append(ReviewSchema(
+                id=review.id,
+                # schemas.py의 `ReviewSchema`는 'user'라는 alias를 사용
+                user=review.reviewer.nickname if review.reviewer else "알 수 없음", 
+                rating=float(review.rating),
+                text=review.text,
+                created_at=review.created_at
+            ))
+        except Exception as e:
+            print(f"Error converting review ID {review.id} to schema: {e}")
 
-        reviews_data.append(ReviewSchema(
-            id=review.id,
-            user=review.reviewer.nickname if review.reviewer else "알 수 없음",
-            profileAge=profile_age_str,
-            rating=review.rating,
-            text=review.text
-        ))
+    # 6. 관련 콘텐츠 쿼리 (페이지네이션 적용)
+    # 6-1. 전체 관련 콘텐츠 개수 계산
+    total_related_count = db.query(func.count(Content.id)).filter(
+        Content.location == content.location, 
+        Content.id != content_id,           
+        Content.status == "Active"          
+    ).scalar() or 0
 
-    # 6. 실제 관련 콘텐츠 쿼리
+    # 6-2. 요청된 페이지의 관련 콘텐츠 목록 쿼리
     related_results = db.query(
         Content.id,
         Content.title,
@@ -135,20 +195,30 @@ def get_content_detail(content_id: int, db: Session = Depends(get_db)):
         ContentImage, (Content.id == ContentImage.contents_id) & (ContentImage.is_main == True)
     ).filter(
         Content.location == content.location,
-        Content.id != content_id
-    ).limit(4).all()
+        Content.id != content_id,
+        Content.status == "Active"
+    ).order_by(
+        Content.created_at.desc()
+    ).offset(
+        (related_page - 1) * related_per_page
+    ).limit(
+        related_per_page
+    ).all()
 
-    # RelatedContentSchema에 맞게 변환
-    related_contents_data = [
-        RelatedContentSchema(
-            id=r.id,
-            title=r.title,
-            price=f"{r.price:,}" if r.price is not None else "문의",
-            rating=round(random.uniform(4.0, 5.0), 1), # 임시 평점
-            time="2시간 소요", # 임시 시간
-            imageUrl=r.imageUrl
-        ) for r in related_results
-    ]
+    # RelatedContentSchema 변환
+    related_contents_data = []
+    for r in related_results:
+         try:
+            related_contents_data.append(RelatedContentSchema(
+                id=r.id,
+                title=r.title,
+                price=f"{r.price:,}" if r.price is not None else "문의",
+                rating=round(random.uniform(4.0, 5.0), 1), # 임시 평점
+                time="2시간 소요", # 임시 시간
+                imageUrl=r.imageUrl
+            ))
+         except Exception as e:
+            print(f"Error converting related content ID {r.id} to schema: {e}")
 
     # 7. 실제 태그 쿼리
     tag_results = db.query(Tag).join(
@@ -156,42 +226,31 @@ def get_content_detail(content_id: int, db: Session = Depends(get_db)):
     ).filter(
         ContentTag.contents_id == content_id
     ).all()
-    
     tags_data = [tag.name for tag in tag_results]
 
-    # 8. 리뷰 평점 및 개수 쿼리
-    rating_stats = db.query(
-        func.avg(Review.rating).label("avg_rating"),
-        func.count(Review.id).label("review_count")
-    ).join(
-        Booking, Review.booking_id == Booking.id
-    ).filter(
-        Booking.content_id == content_id
-    ).first()
-
     # 9. 최종 데이터 조합
-    return ContentDetailSchema(
-        id=content.id,
-        title=content.title,
-        description=content.description if content.description else "설명 없음",
-        price=content.price if content.price is not None else 0,
-        location=content.location if content.location else "미정",
-        created_at=content.created_at,
-        status=content.status,
+    try:
+        return ContentDetailSchema(
+            id=content.id,
+            title=content.title,
+            description=content.description if content.description else "설명 없음",
+            price=content.price if content.price is not None else 0,
+            location=content.location if content.location else "미정",
+            created_at=content.created_at,
+            status=content.status,
+            main_image_url=main_image_url,
+            guide_name=guide_name,
+            guide_nickname=guide_nickname,
+            guide_avg_rating=guide_avg_rating,
+            guide_id=content.guide_id,
+            reviews=reviews_data,               # 현재 페이지 리뷰
+            related_contents=related_contents_data, # 현재 페이지 관련 콘텐츠
+            tags=tags_data,
+            rating=avg_content_rating,          # 전체 평균 평점
+            review_count=total_reviews_count,   # 전체 리뷰 개수
+            total_related_count=total_related_count # 전체 관련 콘텐츠 개수
+        )
+    except Exception as e:
+        print(f"Error creating ContentDetailSchema for content ID {content_id}: {e}")
+        raise HTTPException(status_code=500, detail="데이터 변환 중 오류가 발생했습니다.")
 
-        main_image_url=main_image_url,
-        guide_name=guide_name, # DetailSchema 필드
-        guide_nickname=guide_nickname, # ListSchema 상속 필드
-        
-        # ▼▼▼ [수정] guide_id 필드 추가 ▼▼▼
-        guide_id=content.guide_id, 
-        # ▲▲▲ [수정 완료] ▲▲▲
-
-        reviews=reviews_data,
-        related_contents=related_contents_data,
-
-        # 추가된 필드들
-        tags=tags_data,
-        rating=round(rating_stats.avg_rating, 1) if rating_stats and rating_stats.avg_rating else 4.0, # 기본값 4.0
-        review_count=rating_stats.review_count if rating_stats and rating_stats.review_count else 0 # 기본값 0
-    )

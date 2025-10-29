@@ -5,3 +5,4 @@ mysql-connector-python  # MySQL DB 연결 드라이버
 pydantic
 python-dotenv  # .env 파일 로드용
 bcrypt  # 비밀번호 해싱용
+pydantic[email]
