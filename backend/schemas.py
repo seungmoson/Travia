@@ -28,7 +28,7 @@ class ContentListSchema(BaseModel):
 # DetailPage의 'ReviewList' 컴포넌트용 스키마
 class ReviewSchema(BaseModel):
     id: int
-    user: str = Field(..., description="리뷰 작성자 닉네임")
+    user: str = Field(..., description="리뷰 작성자 닉_네임")
     profileAge: str = Field(..., description="리뷰 작성자 프로필 (예: 가입 1년)")
     rating: int = Field(..., description="별점 (1~5)")
     text: str = Field(..., description="리뷰 본문")
@@ -116,6 +116,10 @@ class MyBookingSchema(BaseModel):
     personnel: int = Field(..., description="예약 인원")
     status: str = Field(..., description="예약 상태 (예: Pending, Confirmed)")
     
+    # --- ▼ [신규 추가] 리뷰 작성 여부 플래그 ▼ ---
+    is_reviewed: bool = Field(False, description="리뷰 작성 완료 여부 (상품/가이드 둘 다)")
+    # --- ▲ 신규 추가 완료 ▲ ---
+    
     class Config:
         from_attributes = True
 # --- ▲ 신규 추가 완료 ▲ ---
@@ -146,3 +150,53 @@ class GuideBookingSchema(BaseModel):
     class Config:
         from_attributes = True
 # --- ▲ 신규 추가 완료 ▲ ---
+
+
+# ==================================================
+# 4. Review 관련 스키마 (신규 추가)
+# ==================================================
+# 리뷰 작성 시 사용 (상품 리뷰, 가이드 리뷰 공통)
+class ReviewBase(BaseModel):
+    # 기존 ReviewSchema의 rating: int와 달리, 0.5점 단위 입력을 허용
+    rating: float = Field(..., ge=0.5, le=5.0, description="별점 (0.5 ~ 5.0 사이)")
+    comment: str = Field(..., description="리뷰 코멘트") # 프론트엔드 -> 백엔드
+
+# --- ▼ [신규 추가] 상품(Content) 리뷰 생성 요청 스키마 ▼ ---
+class ContentReviewCreate(ReviewBase):
+    booking_id: int = Field(..., description="리뷰를 작성할 예약(Booking) ID")
+    # 백엔드에서 booking_id를 검증하여 traveler_id, content_id를 확정함
+
+# --- ▼ [수정] 상품(Content) 리뷰 응답 스키마 ▼ ---
+# (models.Review에 맞게 수정: ReviewBase 상속 제거, 필드명/타입 변경)
+class ContentReviewResponse(BaseModel):
+    id: int
+    reviewer_id: int       # (traveler_id -> reviewer_id)
+    booking_id: int        # (DB에 있으므로 추가)
+    rating: int            # (float -> int, models.py 기준)
+    text: str              # (comment -> text, models.py 기준)
+    created_at: datetime
+    # (content_id 필드는 models.Review에 없으므로 제거)
+
+    class Config:
+        from_attributes = True
+
+# --- ▼ [신규 추가] 가이드(Guide) 리뷰 생성 요청 스키마 ▼ ---
+class GuideReviewCreate(ReviewBase):
+    booking_id: int = Field(..., description="리뷰를 작성할 예약(Booking) ID")
+    # 백엔드에서 booking_id를 검증하여 traveler_id, guide_id를 확정함
+
+# --- ▼ [수정] 가이드(Guide) 리뷰 응답 스키마 ▼ ---
+# (models.GuideReview에 맞게 수정: ReviewBase 상속 제거, 필드명/타입 변경)
+class GuideReviewResponse(BaseModel):
+    id: int
+    reviewer_id: int       # (traveler_id -> reviewer_id)
+    guide_id: int
+    booking_id: int        # (DB에 있으므로 추가)
+    rating: int            # (float -> int, models.py 기준)
+    text: str              # (comment -> text, models.py 기준)
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+# --- ▲ 신규 추가 완료 ▲ ---
+

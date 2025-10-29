@@ -4,7 +4,10 @@ from datetime import datetime
 from typing import List
 
 from database import get_db
-from models import Booking, Content, User, ContentImage
+# --- ▼ [수정] Review, GuideReview 모델 임포트 추가 ▼ ---
+from models import Booking, Content, User, ContentImage, Review, GuideReview
+# --- ▲ [수정 완료] ▲ ---
+
 # [수정] GuideBookingSchema, UserInfoSchema 임포트 추가
 from schemas import (
     BookingCreateRequest, 
@@ -36,12 +39,14 @@ def _build_guide_booking_schema(booking: Booking) -> GuideBookingSchema:
     
     # "Completed" 상태 동적 처리
     display_status = booking.status
-    if booking.status == "Confirmed" and booking.booking_date < datetime.now():
-        display_status = "Completed"
+    # [수정] 'Completed' 상태는 이제 헬퍼 함수가 아닌 API(complete)로 명시적으로 처리하므로,
+    #       여기서는 동적 Completed 처리를 제거합니다. (DB의 상태를 신뢰)
+    # if booking.status == "Confirmed" and booking.booking_date < datetime.now():
+    #     display_status = "Completed"
     
     # 고객 정보가 로드되었는지 확인
     if not booking.traveler:
-        traveler_info = UserInfoSchema(username="Unknown", email="unknown@example.com")
+        traveler_info = UserInfoSchema(nickname="Unknown", email="unknown@example.com")
     else:
         traveler_info = UserInfoSchema.model_validate(booking.traveler)
 
@@ -52,7 +57,7 @@ def _build_guide_booking_schema(booking: Booking) -> GuideBookingSchema:
         content_main_image_url=main_image_url,
         booking_date=booking.booking_date,
         personnel=booking.personnel,
-        status=display_status,
+        status=booking.status, # [수정] display_status -> booking.status
         traveler=traveler_info
     )
 # --- ▲ 헬퍼 함수 종료 ▲ ---
@@ -101,11 +106,21 @@ def get_my_bookings(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # ... (기존 코드와 동일) ...
-    bookings = db.query(Booking).options(joinedload(Booking.content).joinedload(Content.images)).filter(Booking.traveler_id == current_user.id, Booking.status != "Canceled").order_by(Booking.booking_date.desc()).all()
+    # --- ▼ [수정] 쿼리에 review, guide_review 관계 로드 추가 ▼ ---
+    bookings = db.query(Booking).options(
+        joinedload(Booking.content).joinedload(Content.images),
+        joinedload(Booking.review), # (상품 리뷰 로드)
+        joinedload(Booking.guide_review) # (가이드 리뷰 로드)
+    ).filter(
+        Booking.traveler_id == current_user.id, 
+        Booking.status != "Canceled"
+    ).order_by(Booking.booking_date.desc()).all()
+    # --- ▲ [수정 완료] ▲ ---
+    
     response_data: List[MyBookingSchema] = []
     if not bookings:
         return response_data
+    
     for booking in bookings:
         main_image_url = None
         if booking.content and booking.content.images:
@@ -115,9 +130,18 @@ def get_my_bookings(
                     break
             if not main_image_url and len(booking.content.images) > 0:
                 main_image_url = booking.content.images[0].image_url
-        display_status = booking.status
-        if booking.status == "Confirmed" and booking.booking_date < datetime.now():
-            display_status = "Completed"
+        
+        # [수정] 'Completed' 상태 동적 처리 제거
+        # display_status = booking.status
+        # if booking.status == "Confirmed" and booking.booking_date < datetime.now():
+        #     display_status = "Completed"
+            
+        # --- ▼ [신규 추가] is_reviewed 플래그 계산 ▼ ---
+        # (schemas.py에 명시된 대로 상품/가이드 리뷰가 *모두* 있어야 True)
+        # [수정] 둘 중 하나(or)만 있어도 True로 변경
+        is_reviewed = (booking.review is not None) or (booking.guide_review is not None)
+        # --- ▲ [신규 추가 완료] ▲ ---
+            
         response_data.append(
             MyBookingSchema(
                 booking_id=booking.id,
@@ -126,7 +150,8 @@ def get_my_bookings(
                 content_main_image_url=main_image_url,
                 booking_date=booking.booking_date,
                 personnel=booking.personnel,
-                status=display_status
+                status=booking.status, # [수정] display_status -> booking.status
+                is_reviewed=is_reviewed # [신규] is_reviewed 값 전달
             )
         )
     return response_data
@@ -271,7 +296,62 @@ def reject_booking(
 # --- ▲ 신규 API 추가 완료 ▲ ---
 
 
-# 7. DELETE /{booking_id} (예약 취소 - 여행자용)
+# --- ▼ 7. [신규] 가이드가 여행 완료 처리 (Complete) ▼ ---
+@router.patch("/complete/{booking_id}", response_model=GuideBookingSchema)
+def complete_booking(
+    booking_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    가이드가 'Confirmed' 상태의 예약을 'Completed'로 변경합니다.
+    (여행 완료 처리)
+    """
+    # 1. 예약 조회 (보안: 이 가이드의 콘텐츠가 맞는지 확인)
+    booking = db.query(Booking).\
+        join(Content, Booking.content_id == Content.id).\
+        filter(
+            Booking.id == booking_id,
+            Content.guide_id == current_user.id
+        ).\
+        options(
+            joinedload(Booking.traveler), 
+            joinedload(Booking.content).joinedload(Content.images) 
+        ).\
+        first()
+
+    # 2. 예약이 없거나, 내 예약이 아닌 경우
+    if not booking:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="예약을 찾을 수 없거나 완료 처리할 권한이 없습니다."
+        )
+
+    # 3. 'Confirmed' 상태가 아닌 경우
+    if booking.status != "Confirmed":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"확정(Confirmed) 상태의 예약만 완료 처리할 수 있습니다. (현재 상태: {booking.status})"
+        )
+
+    # 4. 상태 변경 및 저장
+    booking.status = "Completed"
+    try:
+        db.commit()
+        db.refresh(booking)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"예약 완료 처리 중 오류 발생: {e}"
+        )
+
+    # 5. 갱신된 예약 정보를 스키마에 맞춰 반환 (헬퍼 함수 사용)
+    return _build_guide_booking_schema(booking)
+    # --- ▲ [신규 API 추가 완료] ▲ ---
+
+
+# 8. DELETE /{booking_id} (예약 취소 - 여행자용)
 @router.delete("/{booking_id}", response_model=MyBookingSchema)
 def cancel_booking(
     booking_id: int,
@@ -279,9 +359,16 @@ def cancel_booking(
     current_user: User = Depends(get_current_user)
 ):
     # ... (기존 코드와 동일) ...
-    booking = db.query(Booking).options(joinedload(Booking.content).joinedload(Content.images)).filter(Booking.id == booking_id).first()
+    booking = db.query(Booking).options(
+        # --- ▼ [수정] 쿼리에 review, guide_review 관계 로드 추가 ▼ ---
+        joinedload(Booking.content).joinedload(Content.images),
+        joinedload(Booking.review),
+        joinedload(Booking.guide_review)
+        # --- ▲ [수정 완료] ▲ ---
+    ).filter(Booking.id == booking_id).first()
+    
     if not booking:
-        raise HTTPException(status_code=status.HTTP_44_NOT_FOUND, detail="예약을 찾을 수 없습니다.")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="예약을 찾을 수 없습니다.")
     if booking.traveler_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="이 예약을 취소할 권한이 없습니다.")
     if booking.status == "Canceled":
@@ -293,6 +380,7 @@ def cancel_booking(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="예약 취소 중 서버 오류가 발생했습니다.")
+    
     main_image_url = None
     if booking.content and booking.content.images:
         for img in booking.content.images:
@@ -301,6 +389,12 @@ def cancel_booking(
                 break
         if not main_image_url and len(booking.content.images) > 0:
             main_image_url = booking.content.images[0].image_url
+            
+        # --- ▼ [신규 추가] is_reviewed 플래그 계산 ▼ ---
+        # [수정] 둘 중 하나(or)만 있어도 True로 변경
+        is_reviewed = (booking.review is not None) or (booking.guide_review is not None)
+        # --- ▲ [신규 추가 완료] ▲ ---
+            
     return MyBookingSchema(
         booking_id=booking.id,
         content_id=booking.content_id,
@@ -308,5 +402,8 @@ def cancel_booking(
         content_main_image_url=main_image_url,
         booking_date=booking.booking_date,
         personnel=booking.personnel,
-        status=booking.status
+        status=booking.status,
+        is_reviewed=is_reviewed # [신규] is_reviewed 값 전달
     )
+
+

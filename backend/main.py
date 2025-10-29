@@ -1,9 +1,7 @@
-# app/main.py
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-# [수정] booking 라우터 import 추가
-from routers import content, auth, booking
+# [수정] booking 및 review 라우터 import 추가
+from routers import content, auth, booking, review 
 
 # 1. FastAPI 애플리케이션 인스턴스 생성 (가장 먼저!)
 app = FastAPI(
@@ -48,11 +46,19 @@ app.include_router(
     tags=["Auth"]
 )
 
-# --- 👇 [추가] 3-3. 예약 라우터 👇 ---
+# 3-3. 예약 라우터
 app.include_router(
     booking.router,
     prefix="/bookings", # 👈 API 경로를 '/bookings'로 설정
     tags=["Booking"]
+)
+
+# --- 👇 [신규 추가] 3-4. 리뷰 라우터 👇 ---
+app.include_router(
+    review.router,
+    # review.py 파일 내에 prefix="/reviews"가 이미 정의되어 있으므로 여기서는 생략합니다.
+    # review.py 파일 내에 tags=["Reviews"]가 이미 정의되어 있습니다.
+    tags=["Reviews"] # (Docs 순서를 위해 tags만 명시적으로 다시 정의할 수 있습니다)
 )
 # --- ▲ 추가 완료 ▲ ---
 

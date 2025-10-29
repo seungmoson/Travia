@@ -155,6 +155,16 @@ const RejectButton = styled(ActionButton)`
   }
 `;
 
+// --- ▼ [신규 추가] '여행 완료' 버튼 스타일 ▼ ---
+const CompleteButton = styled(ActionButton)`
+  background-color: #3498db; /* 파란색 계열 */
+  color: white;
+  &:hover:not(:disabled) {
+    background-color: #2980b9;
+  }
+`;
+// --- ▲ [신규 추가 완료] ▲ ---
+
 const LoadingContainer = styled.div`
   display: flex;
   justify-content: center;
@@ -179,8 +189,13 @@ function GuideDashboard({ user, navigateTo }) {
   // [신규] 예약 정렬 함수 (기존과 동일)
   const sortBookings = (bookingArray) => {
     return [...bookingArray].sort((a, b) => {
+      // 1순위: Pending
       if (a.status === 'Pending' && b.status !== 'Pending') return -1;
       if (a.status !== 'Pending' && b.status === 'Pending') return 1;
+      // 2순위: Confirmed (새로 추가)
+      if (a.status === 'Confirmed' && b.status !== 'Confirmed') return -1;
+      if (a.status !== 'Confirmed' && b.status === 'Confirmed') return 1;
+      // 3순위: 날짜순
       return new Date(a.booking_date) - new Date(b.booking_date);
     });
   };
@@ -229,7 +244,7 @@ function GuideDashboard({ user, navigateTo }) {
   }, [fetchBookings]);
 
 
-  // [신규] 예약 상태 업데이트 공통 함수 (승인 / 거절)
+  // [신규] 예약 상태 업데이트 공통 함수 (승인 / 거절 / 완료)
   const handleUpdateBookingStatus = async (bookingId, action) => {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -241,6 +256,14 @@ function GuideDashboard({ user, navigateTo }) {
 
     setProcessingId(bookingId); // 로딩 시작
 
+    let alertMessage = '';
+    switch (action) {
+        case 'approve': alertMessage = '승인'; break;
+        case 'reject': alertMessage = '거절'; break;
+        case 'complete': alertMessage = '완료'; break;
+        default: alertMessage = '처리';
+    }
+
     try {
       const response = await fetch(`http://127.0.0.1:8000/bookings/${action}/${bookingId}`, {
         method: 'PATCH',
@@ -251,7 +274,7 @@ function GuideDashboard({ user, navigateTo }) {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.detail || `예약 ${action === 'approve' ? '승인' : '거절'}에 실패했습니다.`);
+        throw new Error(errorData.detail || `예약 ${alertMessage}에 실패했습니다.`);
       }
 
       const updatedBooking = await response.json(); 
@@ -333,6 +356,7 @@ function GuideDashboard({ user, navigateTo }) {
                     {booking.status}
                   </StatusBadge>
                   
+                  {/* --- ▼ [수정] 'Pending' 상태일 때 ▼ --- */}
                   {booking.status === 'Pending' && (
                     <>
                       <ApproveButton
@@ -349,6 +373,19 @@ function GuideDashboard({ user, navigateTo }) {
                       </RejectButton>
                     </>
                   )}
+                  {/* --- ▲ [수정 완료] ▲ --- */}
+
+                  {/* --- ▼ [신규 추가] 'Confirmed' 상태일 때 ▼ --- */}
+                  {booking.status === 'Confirmed' && (
+                    <CompleteButton
+                      onClick={() => handleUpdateBookingStatus(booking.booking_id, 'complete')}
+                      disabled={isProcessing}
+                    >
+                      {isProcessing ? '처리중...' : '여행 완료'}
+                    </CompleteButton>
+                  )}
+                  {/* --- ▲ [신규 추가 완료] ▲ --- */}
+
                 </InfoRight>
               </BookingDetails>
             </BookingItem>
@@ -360,3 +397,4 @@ function GuideDashboard({ user, navigateTo }) {
 }
 
 export default GuideDashboard;
+
