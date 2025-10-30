@@ -22,13 +22,7 @@ IMAGE_MAP = {
     "DJN_Sci": "/Daejeon_ScienceCity.png",
     "USN_Whale": "/Ulsan_WhaleVillage.png",
     "SEO_Bike": "/HanRiver_Bicycle.png",
-    # 기타 이미지 (필요 시 추가 할당)
-    "Default_Beach": "/beach.png",
-    "Default_Food": "/food.png",
-    "Default_Hanok": "/hanok.png",
-    "Default_Hiking": "/hiking.png",
-    "Default_Sunset": "/sunset.png",
-    "Default_Traditional": "/traditional.png",
+
 }
 
 # --- ▼ 제공된 콘텐츠 및 리뷰 데이터 ▼ ---
@@ -296,44 +290,48 @@ def create_seed_data(db: Session):
         db.rollback()
         return
 
-    # --- 2. Tags ---
-    print("3. Creating Tags...")
-    # SEED_CONTENTS_DATA 에서 필요한 모든 태그 추출 + 기본 태그
-    tags_needed = set()
-    for item in SEED_CONTENTS_DATA:
-        tags_needed.add(item["tag_key"]) # 지역 태그
-        tags_needed.update(item.get("tags", [])) # 활동 태그
-    tags_needed.update([ # 기본 태그 추가 (혹시 빠진 경우 대비)
-        "야경", "역사", "사진촬영", "해변", "등산", "맛집", "힐링", "문화체험", "카페", "교육", "가족여행", "액티비티",
-        "서울여행", "부산여행", "제주여행"
-    ])
+    # --- [수정됨] 2. Tags ---
+    # 수동 태그 생성 로직을 주석 처리합니다.
+    # AI 태그 스크립트가 'Tag' 마스터 테이블을 직접 채울 것입니다.
+    # --- (주석 처리 시작) ---
+    # print("3. Creating Tags...")
+    # # SEED_CONTENTS_DATA 에서 필요한 모든 태그 추출 + 기본 태그
+    # tags_needed = set()
+    # for item in SEED_CONTENTS_DATA:
+    #     tags_needed.add(item["tag_key"]) # 지역 태그
+    #     tags_needed.update(item.get("tags", [])) # 활동 태그
+    # tags_needed.update([ # 기본 태그 추가 (혹시 빠진 경우 대비)
+    #     "야경", "역사", "사진촬영", "해변", "등산", "맛집", "힐링", "문화체험", "카페", "교육", "가족여행", "액티비티",
+    #     "서울여행", "부산여행", "제주여행"
+    # ])
 
-    existing_tags_db = {tag.name for tag in db.query(Tag.name).all()}
-    tags = {} # 태그 이름 -> Tag 객체 맵
-    try:
-        new_tag_objs = []
-        for tag_name in tags_needed:
-            if tag_name not in existing_tags_db:
-                tag_type = "Location" if "여행" in tag_name else "Activity" # 간단 분류
-                new_tag_objs.append(Tag(name=tag_name, tag_type=tag_type))
+    # existing_tags_db = {tag.name for tag in db.query(Tag.name).all()}
+    # tags = {} # 태그 이름 -> Tag 객체 맵
+    # try:
+    #     new_tag_objs = []
+    #     for tag_name in tags_needed:
+    #         if tag_name not in existing_tags_db:
+    #             tag_type = "Location" if "여행" in tag_name else "Activity" # 간단 분류
+    #             new_tag_objs.append(Tag(name=tag_name, tag_type=tag_type))
 
-        if new_tag_objs:
-            db.add_all(new_tag_objs)
-            db.commit() # 새 태그 저장
-            print(f"   ✅ {len(new_tag_objs)} new tags created: {[t.name for t in new_tag_objs]}")
-        else:
-             print("   ✅ All required tags already exist or no new tags needed.")
+    #     if new_tag_objs:
+    #         db.add_all(new_tag_objs)
+    #         db.commit() # 새 태그 저장
+    #         print(f"   ✅ {len(new_tag_objs)} new tags created: {[t.name for t in new_tag_objs]}")
+    #     else:
+    #          print("   ✅ All required tags already exist or no new tags needed.")
 
-        # 모든 태그 객체를 딕셔너리에 저장
-        all_db_tags = db.query(Tag).all()
-        for tag in all_db_tags:
-            tags[tag.name] = tag
-        print(f"   ✅ Total {len(tags)} tags loaded into memory.")
+    #     # 모든 태그 객체를 딕셔너리에 저장
+    #     all_db_tags = db.query(Tag).all()
+    #     for tag in all_db_tags:
+    #         tags[tag.name] = tag
+    #     print(f"   ✅ Total {len(tags)} tags loaded into memory.")
 
-    except Exception as e:
-        print(f"   ❌ Error creating/loading tags: {e}")
-        db.rollback()
-        return
+    # except Exception as e:
+    #     print(f"   ❌ Error creating/loading tags: {e}")
+    #     db.rollback()
+    #     return
+    # --- (주석 처리 종료) ---
 
     # --- 3. Content, Images, Bookings, Reviews, ContentTags ---
     print("4. Creating Contents, Images, Bookings, Reviews, and Tags...")
@@ -371,24 +369,27 @@ def create_seed_data(db: Session):
             total_contents += 1
 
             # 3-2. ContentImage 생성
-            image_path = IMAGE_MAP.get(content_data["image_key"], IMAGE_MAP["Default_Beach"])
+            image_path = IMAGE_MAP.get(content_data["image_key"], IMAGE_MAP.get("Default_Beach", "/default.png")) # Default_Beach도 없을 경우 대비
             db.add(ContentImage(contents_id=new_content.id, image_url=image_path, sort_order=1, is_main=True))
 
-            # 3-3. ContentTag 생성
-            location_tag_obj = tags.get(content_data["tag_key"])
-            if location_tag_obj:
-                db.add(ContentTag(contents_id=new_content.id, tag_id=location_tag_obj.id, is_ai_extracted=False))
-            else:
-                 print(f"   ⚠️ Warning: Location tag '{content_data['tag_key']}' not found for content '{new_content.title}'.")
+            # --- [수정됨] 3-3. ContentTag 생성 ---
+            # 수동 ContentTag 연결 로직을 주석 처리합니다.
+            # --- (주석 처리 시작) ---
+            # location_tag_obj = tags.get(content_data["tag_key"])
+            # if location_tag_obj:
+            #     db.add(ContentTag(contents_id=new_content.id, tag_id=location_tag_obj.id, is_ai_extracted=False))
+            # else:
+            #      print(f"   ⚠️ Warning: Location tag '{content_data['tag_key']}' not found for content '{new_content.title}'.")
 
-            for tag_name in content_data.get("tags", []):
-                act_tag_obj = tags.get(tag_name)
-                if act_tag_obj:
-                    # 지역 태그와 중복 방지 (선택적)
-                    if not location_tag_obj or act_tag_obj.id != location_tag_obj.id:
-                        db.add(ContentTag(contents_id=new_content.id, tag_id=act_tag_obj.id, is_ai_extracted=False))
-                else:
-                    print(f"   ⚠️ Warning: Activity tag '{tag_name}' not found for content '{new_content.title}'.")
+            # for tag_name in content_data.get("tags", []):
+            #     act_tag_obj = tags.get(tag_name)
+            #     if act_tag_obj:
+            #         # 지역 태그와 중복 방지 (선택적)
+            #         if not location_tag_obj or act_tag_obj.id != location_tag_obj.id:
+            #             db.add(ContentTag(contents_id=new_content.id, tag_id=act_tag_obj.id, is_ai_extracted=False))
+            #     else:
+            #         print(f"   ⚠️ Warning: Activity tag '{tag_name}' not found for content '{new_content.title}'.")
+            # --- (주석 처리 종료) ---
 
 
             # 3-4. Booking, Review, GuideReview 생성
@@ -476,4 +477,3 @@ if __name__ == "__main__":
         create_seed_data(db)
     finally:
         db.close()
-

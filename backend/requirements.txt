@@ -6,3 +6,4 @@ pydantic
 python-dotenv  # .env 파일 로드용
 bcrypt  # 비밀번호 해싱용
 pydantic[email]
+react-loader-spinner
