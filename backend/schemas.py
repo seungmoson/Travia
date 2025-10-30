@@ -1,4 +1,6 @@
-from pydantic import BaseModel, Field, EmailStr
+# backend/schemas.py
+
+from pydantic import BaseModel, Field, EmailStr, field_validator
 from typing import List, Optional
 from datetime import datetime
 
@@ -7,6 +9,8 @@ from datetime import datetime
 # ==================================================
 
 # Content 목록 조회 시 응답 스키마 (MainPage용)
+# [참고] 이 스키마는 /content/list 검색 결과에 사용되며, 
+# 목록 페이지에서는 태그를 보여주지 않으므로 수정이 필요 없습니다.
 class ContentListSchema(BaseModel):
     id: int = Field(..., description="콘텐츠 고유 ID")
     title: str = Field(..., description="콘텐츠 제목")
@@ -20,29 +24,41 @@ class ContentListSchema(BaseModel):
     class Config:
         from_attributes = True
 
-# --- ▼ [신규 추가] ContentList 무한 스크롤용 응답 스키마 ▼ ---
+# ContentList 무한 스크롤용 응답 스키마
+# [참고] 이 스키마도 /content/list 응답 래퍼이므로 수정이 필요 없습니다.
 class ContentListResponse(BaseModel):
-    """
-    콘텐츠 목록 API (/content/list)의 페이지네이션 응답 스키마
-    """
     contents: List[ContentListSchema] = Field(..., description="현재 페이지의 콘텐츠 목록")
     total_count: int = Field(..., description="조건에 맞는 전체 콘텐츠 개수")
+
+    class Config:
+        from_attributes = True
+
+
+# --- ▼ [신규 추가] Tag 스키마 (Detail Page용) ▼ ---
+class TagSchema(BaseModel):
+    """
+    Tag 모델을 위한 Pydantic 스키마
+    """
+    id: int
+    name: str
+
+    class Config:
+        from_attributes = True
 # --- ▲ [신규 추가 완료] ▲ ---
 
 
 # DetailPage의 'ReviewList' 컴포넌트용 스키마
 class ReviewSchema(BaseModel):
     id: int
-    reviewer_nickname: str = Field(..., alias="user", description="리뷰 작성자 닉네임") 
-    rating: float 
+    reviewer_nickname: str = Field(..., alias="user", description="리뷰 작성자 닉네임")
+    rating: float
     text: str = Field(..., description="리뷰 본문")
-    created_at: datetime 
+    created_at: datetime
 
     class Config:
         from_attributes = True
-        # --- ▼ [수정] Pydantic V2 스타일에 맞는 alias 설정 ▼ ---
-        populate_by_name = True # allow_population_by_field_name -> V2 키로 변경
-        # --- ▲ [수정 완료] ▲ ---
+        populate_by_name = True # V2 스타일 alias 설정
+
 
 # DetailPage의 'RelatedContentList' 컴포넌트용 스키마
 class RelatedContentSchema(BaseModel):
@@ -64,7 +80,13 @@ class ContentDetailSchema(ContentListSchema):
     status: Optional[str] = None
     rating: Optional[float] = Field(None, description="콘텐츠 평균 평점")
     review_count: Optional[int] = Field(None, description="콘텐츠의 '전체' 리뷰 총 개수")
-    tags: List[str] = Field(default_factory=list, description="콘텐츠 태그 목록")
+    
+    # --- ▼ [수정] tags 필드를 List[str]에서 List[TagSchema]로 변경 ▼ ---
+    # ORM의 content.tags (List[models.Tag]) 관계를 
+    # 'from_attributes = True'로 자동 매핑하기 위함
+    tags: List[TagSchema] = Field(default_factory=list, description="콘텐츠 태그 목록")
+    # --- ▲ [수정 완료] ▲ ---
+    
     reviews: List[ReviewSchema] = Field(default_factory=list, description="현재 페이지의 콘텐츠 리뷰 목록")
     related_contents: List[RelatedContentSchema] = Field(default_factory=list, description="현재 페이지의 관련 콘텐츠 목록")
     total_related_count: Optional[int] = Field(None, description="전체 관련 콘텐츠 개수")
@@ -74,7 +96,7 @@ class ContentDetailSchema(ContentListSchema):
 
 
 # ==================================================
-# 2. Auth 관련 스키마
+# 2. Auth 관련 스키마 (변경 없음)
 # ==================================================
 class LoginRequest(BaseModel):
     email: str = Field(..., description="사용자 이메일")
@@ -86,7 +108,7 @@ class LoginResponse(BaseModel):
 
 
 # ==================================================
-# 3. Booking 관련 스키마
+# 3. Booking 관련 스키마 (변경 없음)
 # ==================================================
 class BookingCreateRequest(BaseModel):
     content_id: int = Field(..., description="예약할 콘텐츠 ID")
@@ -130,7 +152,7 @@ class GuideBookingSchema(BaseModel):
     class Config: from_attributes = True
 
 # ==================================================
-# 4. Review 관련 스키마
+# 4. Review 관련 스키마 (변경 없음)
 # ==================================================
 class ReviewBase(BaseModel):
     rating: float = Field(..., ge=0.5, le=5.0, description="별점 (0.5 ~ 5.0 사이)")
@@ -158,4 +180,3 @@ class GuideReviewResponse(BaseModel):
     text: str
     created_at: datetime
     class Config: from_attributes = True
-

@@ -61,7 +61,10 @@ function DetailPage({ contentId, navigateTo, user }) {
 
             try {
                 // 초기 로드 시 1페이지 리뷰 및 1페이지 관련 콘텐츠 요청
+                // --- ▼ [FIX 1] 404 오류 해결: API 경로 수정 ▼ ---
+                // 백엔드 prefix 중복이 해결되었으므로, 원래 경로(/content/{id})로 수정
                 const response = await fetch(`${API_BASE_URL}/content/${contentId}?reviews_page=1&reviews_per_page=${REVIEWS_PER_PAGE}&related_page=1&related_per_page=${RELATED_PER_PAGE}`);
+                // --- ▲ [FIX 1] 수정 완료 ▲ ---
 
                 if (!response.ok) {
                     const errorData = await response.text().catch(() => '서버 응답 없음');
@@ -69,7 +72,17 @@ function DetailPage({ contentId, navigateTo, user }) {
                 }
 
                 const data = await response.json();
-                setContent(data); // 콘텐츠 정보 설정
+
+                // --- ▼ [FIX 2] 'Objects are not valid' 오류 해결 ▼ ---
+                // API는 태그를 [{id: 1, name: '태그1'}] 객체로 반환합니다.
+                // 하위 컴포넌트(ContentInfo)가 문자열 배열을 기대하므로,
+                // .name만 추출하여 ['태그1', '태그2'] 형태로 변환합니다.
+                const fixedData = {
+                    ...data,
+                    tags: data.tags ? data.tags.map(tag => tag.name) : []
+                };
+                setContent(fixedData); // 변환된 데이터로 콘텐츠 정보 설정
+                // --- ▲ [FIX 2] 수정 완료 ▲ ---
 
                 // 하위 컴포넌트에 전달할 초기 데이터 및 전체 개수 설정
                 setInitialReviews(data.reviews || []);
@@ -137,7 +150,7 @@ function DetailPage({ contentId, navigateTo, user }) {
 
                 {/* --- 오른쪽 예약 박스 및 관련 콘텐츠 --- */}
                 <div className="w-full lg:w-4/12">
-                     <div className="lg:sticky lg:top-8 space-y-6">
+                    <div className="lg:sticky lg:top-8 space-y-6">
                         {/* 3. 예약 박스 (기존과 동일) */}
                         <BookingBox
                             user={user}

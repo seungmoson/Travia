@@ -1,12 +1,13 @@
 // [수정] useCallback, useRef 훅 추가
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-// --- ▼ [수정] import 경로에서 .jsx 확장자 제거 (Vite가 처리하도록) ▼ ---
-import ContentList from '../components/ContentList'; 
+// --- ▼ [수정] import 경로에서 .jsx 확장자 제거 및 SearchBar 추가 ▼ ---
+import ContentList from '../components/ContentList';
+import SearchBar from '../components/SearchBar'; // 👈 [신규] SearchBar 임포트
 // --- ▲ [수정 완료] ▲ ---
 // [추가] 로딩 스피너
 import { ThreeDots } from 'react-loader-spinner'; // (npm install react-loader-spinner 필요)
 
-const API_BASE_URL = 'http://localhost:8000'; 
+const API_BASE_URL = 'http://localhost:8000';
 // [추가] 페이지당 불러올 콘텐츠 개수 (백엔드 기본값과 일치)
 const CONTENTS_PER_PAGE = 9;
 
@@ -21,40 +22,55 @@ const MainPage = ({ user, navigateTo }) => {
     const [loading, setLoading] = useState(true); // 초기 로딩
     const [error, setError] = useState(null);
 
-    // --- ▼ [신규 추가] 무한 스크롤 상태 ▼ ---
+    // --- ▼ 무한 스크롤 상태 ▼ ---
     const [currentPage, setCurrentPage] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
     const [loadingMore, setLoadingMore] = useState(false); // 추가 로딩
     const [hasMore, setHasMore] = useState(true); // 더 불러올 콘텐츠가 있는지
     const observerRef = useRef(null); // 스크롤 감지용 Ref
-    // --- ▲ [신규 추가 완료] ▲ ---
+    // --- ▲ 무한 스크롤 상태 완료 ▲ ---
 
-    // --- ▼ [수정] 초기 콘텐츠 로드 (1페이지만) ▼ ---
+    // --- ▼ [수정] 검색 및 태그 관련 상태 ▼ ---
+    const [inputValue, setInputValue] = useState("");     // SearchBar의 현재 입력 값
+    const [searchTerm, setSearchTerm] = useState(""); // API로 보낼 확정된 검색어
+    const [popularTags, setPopularTags] = useState([]); // [신규] 인기 태그 목록
+    // --- ▲ [수정] 검색 상태 완료 ▲ ---
+
+    // --- ▼ [수정] 초기 콘텐츠 로드 (1페이지) 함수 ▼ ---
+    // [핵심] searchTerm이 변경될 때마다 이 함수가 다시 호출됨
     useEffect(() => {
-        const fetchContents = async () => {
+        const fetchInitialContents = async () => {
             try {
-                setLoading(true);
+                setLoading(true); // "전체" 로딩 시작
                 setError(null);
-                setCurrentPage(1); // 페이지 초기화
-                setHasMore(true); // 더보기 상태 초기화
-                setContents([]); // [추가] 목록 초기화
+                setCurrentPage(1); // 페이지 1로 리셋
+                setHasMore(true);
+                setContents([]); // [중요] 목록 초기화
 
-                // GET /content/list?page=1&per_page=9
-                const response = await fetch(`${API_BASE_URL}/content/list?page=1&per_page=${CONTENTS_PER_PAGE}`);
+                // [수정] URL에 search 파라미터 추가
+                const params = new URLSearchParams({
+                    page: 1,
+                    per_page: CONTENTS_PER_PAGE,
+                });
+                if (searchTerm) {
+                    params.append('search', searchTerm); // 👈 검색어가 있으면 추가
+                }
+
+                // --- ▼ [FIX] API 경로 수정 (prefix 중복 제거) ▼ ---
+                // /content/content/list -> /content/list
+                const response = await fetch(`${API_BASE_URL}/content/list?${params.toString()}`);
+                // --- ▲ [FIX] 수정 완료 ▲ ---
 
                 if (!response.ok) {
                     throw new Error(`HTTP Error! Status: ${response.status}`);
                 }
 
-                // [수정] 백엔드 응답 형식 변경 { contents: [...], total_count: N }
-                const data = await response.json(); 
+                const data = await response.json();
                 
-                // 2. 성공: 1페이지 데이터와 전체 개수 설정
                 const initialContents = data.contents || [];
-                setContents(initialContents); 
+                setContents(initialContents);
                 const totalContentCount = data.total_count || 0;
                 setTotalCount(totalContentCount);
-                // 더 불러올 콘텐츠가 있는지 확인
                 setHasMore(initialContents.length < totalContentCount);
 
             } catch (e) {
@@ -62,15 +78,39 @@ const MainPage = ({ user, navigateTo }) => {
                 setError("콘텐츠 목록을 불러오는 데 실패했습니다. 서버 상태를 확인하세요.");
                 setHasMore(false);
             } finally {
-                setLoading(false); // 초기 로딩 완료
+                setLoading(false); // "전체" 로딩 완료
             }
         };
 
-        fetchContents();
-    }, []); // 마운트 시 1회만 실행
+        fetchInitialContents();
+    }, [searchTerm]); // [핵심] searchTerm이 바뀔 때마다 1페이지부터 다시 로드
     // --- ▲ [수정 완료] ▲ ---
 
-    // --- ▼ [신규 추가] 추가 콘텐츠 로드 함수 ▼ ---
+    // --- ▼ [신규] 인기 태그 로드 useEffect ▼ ---
+    useEffect(() => {
+        const fetchPopularTags = async () => {
+            try {
+                // --- ▼ [FIX] API 경로 수정 (prefix 중복 제거) ▼ ---
+                // /content/content/tags -> /content/tags
+                const response = await fetch(`${API_BASE_URL}/content/tags?limit=10`);
+                // --- ▲ [FIX] 수정 완료 ▲ ---
+                if (!response.ok) {
+                    throw new Error("Failed to fetch popular tags");
+                }
+                const tags = await response.json(); // ["태그1", "태그2", ...]
+                setPopularTags(tags);
+            } catch (err) {
+                console.error("Popular tags fetching failed:", err);
+                // 태그 로딩 실패는 치명적이지 않으므로, 에러 상태를 설정하지 않고 콘솔에만 기록
+            }
+        };
+
+        fetchPopularTags(); // 컴포넌트 마운트 시 1회 실행
+    }, []); // 빈 의존성 배열
+    // --- ▲ [신규] 태그 로드 완료 ▲ ---
+
+
+    // --- ▼ [수정] 추가 콘텐츠 로드 함수 (무한 스크롤용) ▼ ---
     const loadMoreContents = useCallback(async () => {
         if (loadingMore || !hasMore) return;
 
@@ -78,7 +118,20 @@ const MainPage = ({ user, navigateTo }) => {
         const nextPage = currentPage + 1;
 
         try {
-            const response = await fetch(`${API_BASE_URL}/content/list?page=${nextPage}&per_page=${CONTENTS_PER_PAGE}`);
+            // [수정] URL에 search 파라미터 추가
+            const params = new URLSearchParams({
+                page: nextPage,
+                per_page: CONTENTS_PER_PAGE,
+            });
+            if (searchTerm) {
+                params.append('search', searchTerm); // 👈 검색어가 있으면 추가
+            }
+
+            // --- ▼ [FIX] API 경로 수정 (prefix 중복 제거) ▼ ---
+            // /content/content/list -> /content/list
+            const response = await fetch(`${API_BASE_URL}/content/list?${params.toString()}`);
+            // --- ▲ [FIX] 수정 완료 ▲ ---
+            
             if (!response.ok) throw new Error("Failed to fetch more contents");
 
             const data = await response.json(); // { contents: [...], total_count: N }
@@ -89,8 +142,13 @@ const MainPage = ({ user, navigateTo }) => {
                     const existingIds = new Set(prevContents.map(c => c.id));
                     const uniqueNew = newContents.filter(c => !existingIds.has(c.id));
                     const updatedContents = [...prevContents, ...uniqueNew];
-                    // 갱신된 길이를 기준으로 hasMore 상태 업데이트
-                    setHasMore(updatedContents.length < totalCount);
+                    
+                    // [수정] totalCount는 이미 searchTerm 기준으로 설정되어 있으므로
+                    // setHasMore(updatedContents.length < totalCount);
+                    // (위 코드는 Pydantic 스키마의 total_count를 신뢰하므로 아래 코드로 대체)
+                    setTotalCount(data.total_count || totalCount); // (혹시 모르니 totalCount도 갱신)
+                    setHasMore(updatedContents.length < (data.total_count || totalCount));
+                    
                     return updatedContents;
                 });
                 setCurrentPage(nextPage);
@@ -104,22 +162,40 @@ const MainPage = ({ user, navigateTo }) => {
         } finally {
             setLoadingMore(false);
         }
-    }, [loadingMore, hasMore, currentPage, totalCount]);
-    // --- ▲ [신규 추가 완료] ▲ ---
+        // [수정] searchTerm도 의존성에 추가
+    }, [loadingMore, hasMore, currentPage, totalCount, searchTerm]);
+    // --- ▲ [수정 완료] ▲ ---
 
-    // --- ▼ [신규 추가] Intersection Observer 설정 ▼ ---
+    // --- ▼ [신규] 검색 실행 핸들러 ▼ ---
+    /**
+     * SearchBar에서 "검색" 버튼을 누르거나 Enter를 쳤을 때 실행
+     */
+    const handleSearchSubmit = () => {
+        // [핵심] searchTerm 상태를 업데이트
+        // -> 이로 인해 1페이지 로드 useEffect가 자동으로 다시 실행됨
+        setSearchTerm(inputValue);
+    };
+    // --- ▲ [신규] 핸들러 완료 ▲ ---
+
+    // --- ▼ [신규] 태그 클릭 핸들러 ▼ ---
+    const handleTagClick = (tagName) => {
+        setInputValue(tagName); // 1. 입력창 값을 클릭한 태그로 변경
+        setSearchTerm(tagName); // 2. 즉시 검색 실행 (searchTerm 변경 -> useEffect 트리거)
+    };
+    // --- ▲ [신규] 핸들러 완료 ▲ ---
+
+
+    // --- Intersection Observer 설정 (변경 없음) ---
     useEffect(() => {
-        // 초기 로딩 중이거나, ref가 없으면 Observer 설정 안함
         if (loading || !observerRef.current) return () => {};
 
         const observer = new IntersectionObserver(
             (entries) => {
-                // 타겟이 보이고, 추가 로딩 중이 아니며, 더 불러올 게 있을 때
                 if (entries[0].isIntersecting && !loadingMore && hasMore) {
                     loadMoreContents();
                 }
             },
-            { threshold: 0.1 } // 타겟이 10% 보일 때
+            { threshold: 0.1 }
         );
 
         const currentObserverRef = observerRef.current;
@@ -131,11 +207,10 @@ const MainPage = ({ user, navigateTo }) => {
             }
         };
     }, [loading, loadMoreContents, loadingMore, hasMore]);
-    // --- ▲ [신규 추가 완료] ▲ ---
-
     
-    // --- 로딩 및 오류 상태 렌더링 ---
-    if (loading && currentPage === 1) { // [수정] 초기 로딩 시에만
+
+    // --- 로딩 및 오류 상태 렌더링 (변경 없음) ---
+    if (loading && currentPage === 1) { 
         return (
             <div className="flex justify-center items-center h-screen bg-gray-50">
                 <ThreeDots color="#4f46e5" height={80} width={80} />
@@ -153,55 +228,81 @@ const MainPage = ({ user, navigateTo }) => {
         );
     }
     
-    // DB 연결은 됐으나, Active 상태인 콘텐츠가 없을 경우
+    // --- ▼ [수정] "결과 없음" 메시지 분기 처리 ▼ ---
     if (!loading && contents.length === 0) {
         return (
-             <div className="p-8 text-center bg-yellow-100 border border-yellow-400 text-yellow-700 rounded-lg m-8">
-                <h1 className="text-2xl font-bold mb-2">등록된 콘텐츠 없음</h1>
-                <p>현재 활성화된 투어 상품이 없습니다. 백엔드의 Seed Data를 확인해주세요.</p>
+            <div className="p-4 sm:p-6 md:p-8 space-y-6">
+                {/* 검색창은 "결과 없음" 페이지에도 표시 */}
+                <div className="bg-white rounded-xl shadow-lg p-5 space-y-4">
+                    <SearchBar
+                        inputValue={inputValue}
+                        onInputChange={setInputValue}
+                        onSearchSubmit={handleSearchSubmit}
+                        popularTags={popularTags} // 👈 [신규] props 전달
+                        onTagClick={handleTagClick}   // 👈 [신규] props 전달
+                    />
+                </div>
+                
+                {/* 분기 메시지 */}
+                <div className="p-8 text-center bg-yellow-100 border border-yellow-400 text-yellow-700 rounded-lg m-8">
+                    <h1 className="text-2xl font-bold mb-2">
+                        {searchTerm ? "검색 결과 없음" : "등록된 콘텐츠 없음"}
+                    </h1>
+                    <p>
+                        {searchTerm 
+                            ? `'${searchTerm}'에 대한 검색 결과가 없습니다. 다른 키워드나 태그로 검색해 보세요.`
+                            : "현재 활성화된 투어 상품이 없습니다. 백엔드의 Seed Data를 확인해주세요."
+                        }
+                    </p>
+                </div>
             </div>
         );
     }
+    // --- ▲ [수정 완료] ▲ ---
+
+    // --- ▼ [수정] 페이지 제목 동적 변경 ▼ ---
+    const pageTitle = searchTerm
+        ? `'${searchTerm}' 검색 결과 (${totalCount || 0}개)`
+        : `추천 콘텐츠 (${totalCount || 0}개)`;
+    // --- ▲ [수정 완료] ▲ ---
 
     // --- 메인 콘텐츠 렌더링 ---
     return (
         <div className="p-4 sm:p-6 md:p-8 space-y-6">
             
-            {/* 상단 검색 및 필터 영역 (기존과 동일) */}
+            {/* --- ▼ [수정] 상단 검색 영역 (SearchBar 컴포넌트로 교체) ▼ --- */}
             <div className="bg-white rounded-xl shadow-lg p-5 space-y-4">
-                {/* 검색창 */}
-                <div className="flex items-center border border-gray-300 rounded-lg p-2 focus-within:ring-2 focus-within:ring-indigo-500 transition duration-200">
-                    <input
-                        type="search"
-                        placeholder="여행지를 검색하세요..."
-                        className="w-full text-lg p-1 focus:outline-none"
-                    />
-                    <button className="bg-indigo-600 text-white p-2.5 rounded-lg hover:bg-indigo-700 transition duration-200">
-                        {/* 검색 아이콘 (인라인 SVG) */}
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                    </button>
-                </div>
+                {/* [수정] 기존 하드코딩된 input/button 대신 SearchBar 컴포넌트 사용 */}
+                <SearchBar
+                    inputValue={inputValue}
+                    onInputChange={setInputValue}
+                    onSearchSubmit={handleSearchSubmit}
+                    popularTags={popularTags} // 👈 [신규] props 전달
+                    onTagClick={handleTagClick}   // 👈 [신규] props 전달
+                />
                 
-                {/* 카테고리/태그 필터: 데이터 없이 목업만 유지 */}
-                <div className="flex flex-wrap gap-2 text-sm">
-                    {/* 임시 필터 데이터는 제거되었으므로, 실제 API에서 태그 데이터를 가져와야 합니다. */}
+                {/* --- ▼ [삭제] 기존 목업 태그 필터 ▼ --- */}
+                {/* <div className="flex flex-wrap gap-2 text-sm">
                     <span className="px-3 py-1.5 rounded-full bg-indigo-600 text-white font-semibold shadow-md">전체</span>
                     <span className="px-3 py-1.5 rounded-full bg-gray-100 text-gray-700">서울</span>
                     <span className="px-3 py-1.5 rounded-full bg-gray-100 text-gray-700">부산</span>
                     <span className="px-3 py-1.5 rounded-full bg-gray-100 text-gray-700">역사</span>
                 </div>
+                */}
+                {/* --- ▲ [삭제 완료] ▲ --- */}
             </div>
+            {/* --- ▲ [수정 완료] ▲ --- */}
+
 
             <h1 className="text-2xl font-bold text-gray-800 pt-4">
-                {/* [수정] 전체 개수 표시 */}
-                추천 콘텐츠 ({totalCount || 0}개)
+                {/* [수정] 동적 제목 사용 */}
+                {pageTitle}
             </h1>
 
-            {/* ContentList 컴포넌트에 현재 로드된 contents 배열 전달 */}
+            {/* ContentList 컴포넌트에 현재 로드된 contents 배열 전달 (기존과 동일) */}
             <ContentList contents={contents} user={user} navigateTo={navigateTo} />
 
-            {/* --- ▼ [신규 추가] 무한 스크롤 로더 및 타겟 ▼ --- */}
-            {/* [수정] 전체 개수가 페이지당 개수보다 클 때만 로더 표시 */}
+            {/* 무한 스크롤 로더 및 타겟 (기존과 동일) */}
             {totalCount > CONTENTS_PER_PAGE && (
                 <div ref={observerRef} className="h-20 flex justify-center items-center">
                     {loadingMore && (
@@ -212,7 +313,6 @@ const MainPage = ({ user, navigateTo }) => {
                     )}
                 </div>
             )}
-            {/* --- ▲ [신규 추가 완료] ▲ --- */}
         </div>
     );
 };
