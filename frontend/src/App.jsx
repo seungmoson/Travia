@@ -5,7 +5,7 @@ import LoginPage from './pages/LoginPage.jsx';
 import BookingPage from './pages/BookingPage.jsx';
 import DetailPage from './pages/DetailPage.jsx';
 import MyPage from './pages/MyPage.jsx';
-import GuideDashboard from './pages/GuideDashboard.jsx'; 
+import GuideDashboard from './pages/GuideDashboard.jsx';
 import { UserIcon } from './assets/Icons.jsx';
 import './index.css';
 
@@ -56,13 +56,13 @@ const App = () => {
             // 토큰 유효성 검사 (만료 시간 확인)
             if (payload && payload.exp * 1000 > Date.now()) {
                 console.log(`Found valid token on load. Restoring user session for: ${storedUsername}`);
-                
+
                 // [수정] id와 user_type도 상태에 저장
-                setUser({ 
-                    isLoggedIn: true, 
+                setUser({
+                    isLoggedIn: true,
                     username: storedUsername,
-                    id: storedId,           
-                    user_type: storedUserType 
+                    id: storedId,
+                    user_type: storedUserType
                 });
             } else {
                 console.log("Found expired or invalid token. Clearing storage.");
@@ -102,21 +102,21 @@ const App = () => {
     // [수정] 로그아웃 처리 함수
     const handleLogout = () => {
         console.log("handleLogout called, setting user state to logged out");
-        
+
         // [수정] id와 user_type도 초기화
-        setUser({ 
-            isLoggedIn: false, 
+        setUser({
+            isLoggedIn: false,
             username: 'Guest',
             id: null,
             user_type: null
         });
-        
+
         // [수정] 모든 사용자 정보 localStorage에서 제거
-        localStorage.removeItem('token'); 
-        localStorage.removeItem('username'); 
-        localStorage.removeItem('user_id'); 
-        localStorage.removeItem('user_type'); 
-        
+        localStorage.removeItem('token');
+        localStorage.removeItem('username');
+        localStorage.removeItem('user_id');
+        localStorage.removeItem('user_type');
+
         setCurrentPage('main');
     };
 
@@ -151,9 +151,9 @@ const App = () => {
                 return <DetailPage
                     contentId={currentContentId}
                     navigateTo={navigateTo}
-                    user={user} 
+                    user={user}
                 />;
-            
+
             case 'myPage':
                 return <MyPage user={user} navigateTo={navigateTo} />;
 
@@ -176,22 +176,21 @@ const App = () => {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between h-16">
                         {/* 로고/타이틀 */}
-                        <div className="flex items-center space-x-4">
-                            <span className="text-xl font-extrabold text-indigo-600 cursor-pointer" onClick={() => navigateTo('main')}>
-                                BUSAN DIGITAL ACADEMY
-                            </span>
-                            <span className="text-2xl font-extrabold text-gray-800 cursor-pointer" onClick={() => navigateTo('main')}>
-                                Travia AI
-                            </span>
+                        <div className="flex items-center space-x-3 cursor-pointer" onClick={() => navigateTo('main')}>
+                            <img
+                                src="/image3.png"
+                                alt="Travia Logo"
+                                className="h-10 w-auto object-contain"
+                            />
                         </div>
                         {/* 우측 사용자 인터페이스 */}
                         <div className="flex items-center space-x-4">
-                            
+
                             {user.isLoggedIn ? (
                                 // 로그인 상태
                                 <>
                                     <span className="text-gray-700 text-sm font-medium hidden sm:inline">{user.username}님</span>
-                                    
+
                                     {/* '내 예약' 버튼 */}
                                     <button
                                         onClick={() => navigateTo('myPage')}
