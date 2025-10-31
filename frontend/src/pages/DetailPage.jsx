@@ -102,6 +102,18 @@ function DetailPage({ contentId, navigateTo, user }) {
     }, [contentId]);
     // --- ▲ [수정 완료] ▲ ---
 
+    // --- ▼▼▼ [신규 추가] 스크롤 상단 이동 useEffect ▼▼▼ ---
+    useEffect(() => {
+        // contentId가 변경될 때마다 (즉, 새 콘텐츠가 로드될 때마다)
+        // 윈도우 스크롤을 맨 위(0, 0)로 즉시 이동시킵니다.
+        try {
+            window.scrollTo(0, 0);
+        } catch (e) {
+            console.error("스크롤을 맨 위로 이동하는 데 실패했습니다:", e);
+        }
+    }, [contentId]); // 👈 contentId가 바뀔 때마다 실행
+    // --- ▲▲▲ [신규 추가] ▲▲▲ ---
+
     // --- 로딩 및 오류 상태 렌더링 ---
     if (loading) {
         return (
@@ -175,4 +187,3 @@ function DetailPage({ contentId, navigateTo, user }) {
 }
 
 export default DetailPage;
-

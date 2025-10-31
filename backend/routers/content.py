@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, or_, distinct  # --- ▼ [수정] or_, distinct 임포트 ▼ ---
-from typing import List, Optional       # --- ▼ [수정] Optional 임포트 ▼ ---
+from typing import List, Optional      # --- ▼ [수정] Optional 임포트 ▼ ---
 from datetime import datetime
 import random
 
@@ -255,12 +255,13 @@ def get_content_detail(
         except Exception as e:
             print(f"Error converting review ID {review.id} to schema: {e}")
 
+    # --- ▼▼▼ 요청하신 수정사항 ▼▼▼ ---
     # 6. 관련 콘텐츠 쿼리 (페이지네이션 적용)
     # 6-1. 전체 관련 콘텐츠 개수 계산
     total_related_count = db.query(func.count(Content.id)).filter(
-        Content.location == content.location, 
-        Content.id != content_id, 		  
-        Content.status == "Active" 		  
+        # Content.location == content.location, # <-- [수정] 관련성 필터(지역) 제거
+        Content.id != content_id,                # 현재 콘텐츠 제외
+        Content.status == "Active"               # 활성 콘텐츠만
     ).scalar() or 0
 
     # 6-2. 요청된 페이지의 관련 콘텐츠 목록 쿼리
@@ -272,16 +273,17 @@ def get_content_detail(
     ).outerjoin(
         ContentImage, (Content.id == ContentImage.contents_id) & (ContentImage.is_main == True)
     ).filter(
-        Content.location == content.location,
-        Content.id != content_id,
-        Content.status == "Active"
+        # Content.location == content.location, # <-- [수정] 관련성 필터(지역) 제거
+        Content.id != content_id,               # 현재 콘텐츠 제외
+        Content.status == "Active"              # 활성 콘텐츠만
     ).order_by(
-        Content.created_at.desc()
+        Content.created_at.desc() # 최신순 정렬
     ).offset(
         (related_page - 1) * related_per_page
     ).limit(
         related_per_page
     ).all()
+    # --- ▲▲▲ 요청하신 수정 완료 ▲▲▲ ---
 
     # RelatedContentSchema 변환
     related_contents_data = []
@@ -326,14 +328,13 @@ def get_content_detail(
             guide_nickname=guide_nickname,
             guide_avg_rating=guide_avg_rating,
             guide_id=content.guide_id,
-            reviews=reviews_data, 		  # 현재 페이지 리뷰
+            reviews=reviews_data,            # 현재 페이지 리뷰
             related_contents=related_contents_data, # 현재 페이지 관련 콘텐츠
             tags=tags_data, # 👈 [FIX] 수정된 tags_data 전달
-            rating=avg_content_rating, 		  # 전체 평균 평점
-            review_count=total_reviews_count, 	 # 전체 리뷰 개수
+            rating=avg_content_rating,           # 전체 평균 평점
+            review_count=total_reviews_count,    # 전체 리뷰 개수
             total_related_count=total_related_count # 전체 관련 콘텐츠 개수
         )
     except Exception as e:
         print(f"Error creating ContentDetailSchema for content ID {content_id}: {e}")
         raise HTTPException(status_code=500, detail="데이터 변환 중 오류가 발생했습니다.")
-
