@@ -314,9 +314,9 @@ const MainPage = ({ user, navigateTo }) => {
     return (
         <div className="p-4 sm:p-6 md:p-8 space-y-6">
             
-            {/* --- ▼ [수정] 상단 검색 영역 (SearchBar props 수정) ▼ --- */}
+            {/* --- ▼ [수정] 상단 검색 영역 (sticky 속성 제거) ▼ --- */}
             <div 
-                className="bg-white rounded-xl shadow-lg p-5 space-y-4 sticky top-4 z-10" // [수정] 검색창 상단 고정
+                className="bg-white rounded-xl shadow-lg p-5 space-y-4" // [수정] sticky top-4 z-10 제거
                 ref={searchWrapperRef} // [신규] 외부 클릭 감지 Ref
             >
                 <SearchBar
@@ -333,46 +333,39 @@ const MainPage = ({ user, navigateTo }) => {
             </div>
             {/* --- ▲ [수정 완료] ▲ --- */}
 
-            {/* --- ▼ [삭제] 사이드 인기 태그 섹션 ▼ --- */}
-            {/* {popularTags.length > 0 && !hasSearchCriteria && (
-                <div>
-                    <h2 className="text-xl font-bold text-gray-800 pt-4 mb-3">인기 태그</h2>
-                    <div className="flex flex-wrap gap-2 text-sm">
-                        {popularTags.map((tag) => (
-                            <button
-                                key={tag}
-                                type="button" 
-                                onClick={() => handleTagClick(tag)} // 클릭 시 selectedTags에 추가됨
-                                className="px-3 py-1.5 rounded-full bg-gray-100 text-gray-700 hover:bg-indigo-100 hover:text-indigo-700 transition duration-200 cursor-pointer"
-                            >
-                                #{tag}
-                            </button>
-                        ))}
+
+            {/* --- ▼ [오류 수정] 클릭 문제 해결을 위한 z-index 래퍼 (이제 필요 없으므로 제거) ▼ --- */}
+            <div className="space-y-6">
+            
+                {/* --- ▼ [삭제] 사이드 인기 태그 섹션 ▼ --- */}
+                {/* {popularTags.length > 0 && !hasSearchCriteria && (
+                    ...
+                )}
+                */}
+                {/* --- ▲ [삭제 완료] ▲ --- */}
+
+                <h1 className="text-2xl font-bold text-gray-800 pt-4">
+                    {pageTitle}
+                </h1>
+
+                {/* ContentList 컴포넌트에 현재 로드된 contents 배열 전달 (기존과 동일) */}
+                <ContentList contents={contents} user={user} navigateTo={navigateTo} />
+
+                {/* 무한 스크롤 로더 및 타겟 (기존과 동일) */}
+                {totalCount > CONTENTS_PER_PAGE && (
+                    <div ref={observerRef} className="h-20 flex justify-center items-center">
+                        {loadingMore && (
+                            // [수정] ThreeDots -> 텍스트 로더
+                            <div className="text-md text-gray-600">추가 로딩 중...</div>
+                        )}
+                        {!loadingMore && !hasMore && contents.length > 0 && (
+                            <p className="text-sm text-gray-500">모든 콘텐츠를 불러왔습니다.</p>
+                        )}
                     </div>
-                </div>
-            )}
-            */}
-            {/* --- ▲ [삭제 완료] ▲ --- */}
+                )}
 
-            <h1 className="text-2xl font-bold text-gray-800 pt-4">
-                {pageTitle}
-            </h1>
-
-            {/* ContentList 컴포넌트에 현재 로드된 contents 배열 전달 (기존과 동일) */}
-            <ContentList contents={contents} user={user} navigateTo={navigateTo} />
-
-            {/* 무한 스크롤 로더 및 타겟 (기존과 동일) */}
-            {totalCount > CONTENTS_PER_PAGE && (
-                <div ref={observerRef} className="h-20 flex justify-center items-center">
-                    {loadingMore && (
-                        // [수정] ThreeDots -> 텍스트 로더
-                        <div className="text-md text-gray-600">추가 로딩 중...</div>
-                    )}
-                    {!loadingMore && !hasMore && contents.length > 0 && (
-                        <p className="text-sm text-gray-500">모든 콘텐츠를 불러왔습니다.</p>
-                    )}
-                </div>
-            )}
+            </div>
+            {/* --- ▲ [오류 수정 완료] ▲ --- */}
         </div>
     );
 };
@@ -390,7 +383,9 @@ const ContentList = ({ contents, navigateTo, user }) => {
           <div 
             key={content.id} 
             className="border rounded-lg shadow-lg overflow-hidden cursor-pointer transition-transform duration-200 hover:scale-[1.02]"
-            onClick={() => navigateTo(`/content/${content.id}`)}
+            // --- ▼ [핵심 수정] App.jsx의 로그에 맞춰 navigateTo 호출 방식 변경 ▼ ---
+            onClick={() => navigateTo('detail', content.id)}
+            // --- ▲ [핵심 수정 완료] ▲ ---
           >
             <img 
               src={content.main_image_url || 'https://placehold.co/600x400/eee/ccc?text=Image'} 
