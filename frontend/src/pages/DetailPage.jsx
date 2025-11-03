@@ -30,7 +30,8 @@ const getImageUrl = (url) => {
  * - 초기 데이터 로딩 담당
  * - 하위 컴포넌트에 props 전달
  */
-function DetailPage({ contentId, navigateTo, user }) {
+ // --- ▼ [수정] setShowAuthModal prop 추가 ▼ ---
+function DetailPage({ contentId, navigateTo, user, setShowAuthModal }) {
     // --- ▼ [수정] 상태 단순화: 초기 데이터만 관리 ▼ ---
     const [content, setContent] = useState(null); // 콘텐츠 상세 정보
     const [initialReviews, setInitialReviews] = useState([]); // 초기 리뷰 목록
@@ -161,7 +162,9 @@ function DetailPage({ contentId, navigateTo, user }) {
                 </div>
 
                 {/* --- 오른쪽 예약 박스 및 관련 콘텐츠 --- */}
+                {/* --- ▼▼▼ [수정] className 오타 수정 ▼▼▼ --- */}
                 <div className="w-full lg:w-4/12">
+                {/* --- ▲▲▲ [수정 완료] ▲▲▲ --- */}
                     <div className="lg:sticky lg:top-8 space-y-6">
                         {/* 3. 예약 박스 (기존과 동일) */}
                         <BookingBox
@@ -169,6 +172,7 @@ function DetailPage({ contentId, navigateTo, user }) {
                             navigateTo={navigateTo}
                             contentId={contentId}
                             contentAuthorId={content?.guide_id}
+                            setShowAuthModal={setShowAuthModal} // --- [수정] prop 전달 ---
                         />
                         {/* 4. 관련 콘텐츠 섹션 (RelatedContentSection 컴포넌트 사용) */}
                          <RelatedContentSection
@@ -187,3 +191,4 @@ function DetailPage({ contentId, navigateTo, user }) {
 }
 
 export default DetailPage;
+

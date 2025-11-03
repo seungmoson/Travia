@@ -2,12 +2,20 @@ import React, { useState, useEffect } from 'react';
 // [수정] 파일 구조에 맞게 import 경로 수정
 import MainPage from './pages/MainPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
+// --- ▼ [신규] SignupPage import 추가 ▼ ---
+import SignupPage from './pages/SignupPage.jsx';
+// --- ▲ [신규] ▲ ---
 import BookingPage from './pages/BookingPage.jsx';
 import DetailPage from './pages/DetailPage.jsx';
 import MyPage from './pages/MyPage.jsx';
 import GuideDashboard from './pages/GuideDashboard.jsx';
 import { UserIcon } from './assets/Icons.jsx';
 import './index.css';
+
+// --- ▼ [신규] AuthModal 컴포넌트 import ▼ ---
+import AuthModal from './components/AuthModal.jsx';
+// --- ▲ [신규] ▲ ---
+
 
 /**
  * 토큰 디코딩 함수 (단순 Base64 디코딩)
@@ -42,6 +50,10 @@ const App = () => {
     // 페이지 라우팅 상태
     const [currentPage, setCurrentPage] = useState('main');
     const [currentContentId, setCurrentContentId] = useState(null);
+
+    // --- ▼ [신규] 로그인 모달 상태 추가 ▼ ---
+    const [showAuthModal, setShowAuthModal] = useState(false);
+    // --- ▲ [신규] ▲ ---
 
     // [수정] 앱 로드 시 모든 로그인 상태 복원
     useEffect(() => {
@@ -120,16 +132,45 @@ const App = () => {
         setCurrentPage('main');
     };
 
+    // --- ▼ [신규] 모달 제어 핸들러 함수 3개 ▼ ---
+    /**
+     * 모달 닫기
+     */
+    const handleCloseModal = () => {
+        setShowAuthModal(false);
+    };
+
+    /**
+     * 모달에서 [로그인] 버튼 클릭
+     */
+    const handleModalLogin = () => {
+        setShowAuthModal(false); // 모달 닫고
+        navigateTo('login');     // 로그인 페이지로 이동
+    };
+
+    /**
+     * 모달에서 [회원가입] 버튼 클릭
+     */
+    const handleModalSignup = () => {
+        setShowAuthModal(false); // 모달 닫고
+        navigateTo('signup');    // 회원가입 페이지로 이동
+    };
+    // --- ▲ [신규] ▲ ---
+
+
     /**
      * 페이지 이동 함수 (라우팅 역할)
      */
     const navigateTo = (page, contentId = null) => {
         console.log(`Navigating to '${page}', contentId: ${contentId}, current user state:`, user);
 
-        // 로그인 필수 페이지 확인
-        if ((page === 'booking' || page === 'myPage' || page === 'guideDashboard') && !user.isLoggedIn) {
-            console.log(`Page '${page}' requires login, redirecting to login page.`);
-            setCurrentPage('login');
+        // [수정] 로그인 필수 페이지 확인 ('signup'은 제외)
+        const loginRequiredPages = ['booking', 'myPage', 'guideDashboard'];
+        if (loginRequiredPages.includes(page) && !user.isLoggedIn) {
+            console.log(`Page '${page}' requires login, showing auth modal.`);
+            // [수정] 로그인 페이지 대신 Auth 모달을 띄웁니다.
+            setShowAuthModal(true);
+            // setCurrentPage('login'); // 👈 이 부분을 주석 처리
         } else {
             setCurrentPage(page);
             setCurrentContentId(contentId); // 상세/예약 페이지 이동 시 ID 설정
@@ -144,6 +185,12 @@ const App = () => {
             case 'login':
                 // [수정] login prop으로 인자 없는 handleLogin 함수 전달
                 return <LoginPage login={handleLogin} navigateTo={navigateTo} />;
+
+            // --- ▼ [수정] 'signup' 페이지 케이스 (임시 -> 실제) ▼ ---
+            case 'signup':
+                return <SignupPage navigateTo={navigateTo} />;
+            // --- ▲ [수정] ▲ ---
+
             case 'booking':
                 return <BookingPage contentId={currentContentId} navigateTo={navigateTo} user={user} />;
             case 'detail':
@@ -152,6 +199,7 @@ const App = () => {
                     contentId={currentContentId}
                     navigateTo={navigateTo}
                     user={user}
+                    setShowAuthModal={setShowAuthModal} // 👈 [수정] 모달 함수 전달
                 />;
 
             case 'myPage':
@@ -224,14 +272,16 @@ const App = () => {
                                     </button>
                                 </>
                             ) : (
-                                // 로그아웃 상태 (로그인 버튼)
+                                // --- ▼ [수정] 로그아웃 상태 (로그인 버튼) ▼ ---
+                                // onClick 이벤트를 navigateTo에서 모달을 여는 함수로 변경
                                 <button
-                                    onClick={() => navigateTo('login')}
+                                    onClick={() => setShowAuthModal(true)}
                                     className="w-8 h-8 rounded-full bg-indigo-500 hover:bg-indigo-600 transition duration-200 flex items-center justify-center shadow-md"
                                     title="로그인/가입"
                                 >
                                     <UserIcon className="w-5 h-5 text-white" />
                                 </button>
+                                // --- ▲ [수정] ▲ ---
                             )}
                         </div>
                     </div>
@@ -247,8 +297,20 @@ const App = () => {
             <footer className="mt-10 p-4 text-center text-gray-500 text-sm border-t border-gray-200 bg-white">
                 © 2025 Travia AI Platform. AI와 데이터로 만드는 개인화 여행.
             </footer>
+
+            {/* --- ▼ [신규] 모달 렌더링 ▼ --- */}
+            {/* showAuthModal state에 따라 모달이 표시되거나 숨겨집니다. */}
+            <AuthModal
+                show={showAuthModal}
+                onClose={handleCloseModal}
+                onLogin={handleModalLogin}
+                onSignup={handleModalSignup}
+            />
+            {/* --- ▲ [신규] ▲ --- */}
         </div>
     );
 };
 
 export default App;
+
+

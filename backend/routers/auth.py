@@ -1,5 +1,3 @@
-# app/routers/auth.py
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta, timezone 
@@ -8,10 +6,8 @@ from passlib.context import CryptContext
 
 from database import get_db
 from models import User
-# [수정] LoginResponse 스키마가 변경되었으므로 확인 (schemas.py에 정의됨)
-# 백엔드가 LoginResponse 외에 추가 정보를 반환하도록 스키마를 수정했을 수 있습니다.
-# 하지만 여기서는 프론트엔드 로직에 맞춰, 토큰 자체에 정보를 담습니다.
-from schemas import LoginRequest, LoginResponse 
+# [수정] LoginResponse 외 SignupRequest, UserPublic 스키마 import
+from schemas import LoginRequest, LoginResponse, SignupRequest, UserPublic
 
 # --- ▼ [JWT 설정] ▼ ---
 SECRET_KEY = "YOUR_VERY_SECRET_KEY_NEEDS_TO_BE_CHANGED" 
@@ -22,7 +18,17 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # --- ▲ JWT 설정 끝 ▲ ---
 
 
-# --- ▼ [토큰 생성 함수] ▼ ---
+# --- ▼ [유틸리티 함수] ▼ ---
+
+# 비밀번호 검증 함수
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
+
+# 비밀번호 해시 함수 (회원가입 시 필요)
+def get_password_hash(password):
+    return pwd_context.hash(password)
+
+# 토큰 생성 함수
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()
     if expires_delta:
@@ -32,7 +38,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
-# --- ▲ 토큰 생성 함수 끝 ▲ ---
+# --- ▲ 유틸리티 함수 끝 ▲ ---
 
 
 # 1. APIRouter 인스턴스 생성
@@ -40,6 +46,53 @@ router = APIRouter(
     prefix="/auth", # [권장] /auth 접두사 추가
     tags=["Auth"]   # [권장] API 문서 태그
 )
+
+# --- ▼▼▼ [신규] POST /signup 엔드포인트 ▼▼▼ ---
+@router.post("/signup", response_model=UserPublic, status_code=status.HTTP_201_CREATED)
+def create_user(request: SignupRequest, db: Session = Depends(get_db)):
+    """
+    새로운 사용자를 생성합니다. (회원가입)
+    - username, email, password, user_type을 받습니다.
+    - user_type은 'traveler' 또는 'guide' 여야 합니다. (스키마에서 검증)
+    """
+    
+    # 1. 이메일 중복 확인
+    existing_user = db.query(User).filter(User.email == request.email).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="이미 사용 중인 이메일입니다.",
+        )
+        
+    # 2. 비밀번호 해시
+    hashed_password = get_password_hash(request.password)
+    
+    # 3. 새 User 객체 생성
+    #    [수정] nickname 필드에 request.username 값을 할당
+    new_user = User(
+        email=request.email,
+        password=hashed_password,
+        nickname=request.username,  # 프론트의 'username'을 DB 'nickname' 필드에 매핑
+        user_type=request.user_type
+    )
+    
+    # 4. DB에 추가 및 커밋
+    try:
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user) # DB에서 생성된 ID 등을 다시 읽어옴
+    except Exception as e:
+        db.rollback()
+        print(f"DB 오류 발생: {e}") # 서버 로그
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="사용자 생성 중 서버 오류가 발생했습니다."
+        )
+    
+    # 5. 생성된 사용자 정보 반환 (UserPublic 스키마 사용, 비밀번호 제외)
+    return new_user
+# --- ▲▲▲ [신규] /signup 엔드포인트 완료 ▲▲▲ ---
+
 
 # 2. POST /login 엔드포인트 정의
 @router.post("/login", response_model=LoginResponse) 
@@ -50,8 +103,8 @@ def login_user(request: LoginRequest, db: Session = Depends(get_db)):
     # 1. 이메일로 사용자 조회
     user = db.query(User).filter(User.email == request.email).first()
 
-    # 2. 비밀번호 검증
-    if not user or not pwd_context.verify(request.password, user.password):
+    # 2. 비밀번호 검증 (verify_password 유틸리티 함수 사용)
+    if not user or not verify_password(request.password, user.password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, 
             detail="이메일 또는 비밀번호가 올바르지 않습니다.",
@@ -76,7 +129,6 @@ def login_user(request: LoginRequest, db: Session = Depends(get_db)):
     )
 
     # 5. 토큰 반환 (LoginResponse 스키마에 맞게)
-    #    (프론트엔드는 이 access_token을 디코딩해서 nickname과 user_type을 사용)
     return LoginResponse(access_token=access_token, token_type="bearer")
 
 

@@ -20,7 +20,8 @@ const getTodayDateString = () => {
 /**
  * BookingBox 컴포넌트
  */
-const BookingBox = ({ contentId, navigateTo, user, contentAuthorId = null }) => {
+ // --- ▼ [수정] setShowAuthModal prop 추가 ▼ ---
+const BookingBox = ({ contentId, navigateTo, user, contentAuthorId = null, setShowAuthModal }) => {
     const todayString = getTodayDateString();
 
     const [bookingDate, setBookingDate] = useState(todayString);
@@ -66,17 +67,20 @@ const BookingBox = ({ contentId, navigateTo, user, contentAuthorId = null }) => 
             return;
         }
 
+        // --- ▼ [수정] 로그인 안된 경우 모달 띄우기 ▼ ---
         if (!user.isLoggedIn) {
-            navigateTo('login');
+            // navigateTo('login'); // 기존 코드
+            setShowAuthModal(true); // 모달을 띄우도록 변경
             return;
         }
+        // --- ▲ [수정 완료] ▲ ---
 
         setBookingLoading(true);
         try {
             const token = localStorage.getItem('token');
             if (!token) {
                 setBookingError('로그인 토큰이 없습니다. 다시 로그인해주세요.');
-                navigateTo('login');
+                navigateTo('login'); // 토큰이 없는 비정상 상황에선 로그인 페이지로 강제 이동
                 setBookingLoading(false);
                 return;
             }
@@ -221,3 +225,4 @@ const BookingBox = ({ contentId, navigateTo, user, contentAuthorId = null }) => 
 };
 
 export default BookingBox;
+

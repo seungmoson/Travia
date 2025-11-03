@@ -1,5 +1,3 @@
-# backend/schemas.py
-
 from pydantic import BaseModel, Field, EmailStr, field_validator
 from typing import List, Optional
 from datetime import datetime
@@ -105,6 +103,33 @@ class LoginRequest(BaseModel):
 class LoginResponse(BaseModel):
     access_token: str = Field(..., description="JWT 액세스 토큰")
     token_type: str = Field("bearer", description="토큰 타입 (고정값 'bearer')")
+
+
+# --- ▼▼▼ [신규] 회원가입(Signup) 관련 스키마 ▼▼▼ ---
+
+# UserPublic: 회원가입 응답 및 토큰 페이로드 검증용
+class UserPublic(BaseModel):
+    id: int
+    email: EmailStr
+    nickname: str = Field(..., description="프론트엔드의 'username'에 해당")
+    user_type: str
+
+    class Config:
+        from_attributes = True
+
+# SignupRequest: 회원가입 요청 본문
+class SignupRequest(BaseModel):
+    username: str = Field(..., min_length=2, max_length=50, description="사용자 닉네임 (프론트엔드 필드명)")
+    email: EmailStr = Field(..., description="사용자 이메일 (로그인 ID)")
+    password: str = Field(..., min_length=8, description="비밀번호 (8자 이상)")
+    user_type: str = Field("traveler", description="사용자 유형 ('traveler' 또는 'guide')")
+
+    @field_validator('user_type')
+    def validate_user_type(cls, v):
+        if v not in ['traveler', 'guide']:
+            raise ValueError("user_type은 'traveler' 또는 'guide' 여야 합니다.")
+        return v
+# --- ▲▲▲ [신규] 회원가입(Signup) 관련 스키마 완료 ▲▲▲ ---
 
 
 # ==================================================
