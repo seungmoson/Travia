@@ -1,20 +1,16 @@
-# app/routers/content.py
-
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func, or_, distinct  # --- ▼ [수정] or_, distinct 임포트 ▼ ---
-from typing import List, Optional      # --- ▼ [수정] Optional 임포트 ▼ ---
+from sqlalchemy import func, or_, distinct
+from typing import List, Optional
 from datetime import datetime
 import random
 
 from database import get_db
 from models import Content, GuideProfile, User, ContentImage, Booking, Review, Tag, ContentTag
-# --- ▼ [수정] ContentListResponse 스키마 임포트 ▼ ---
 from schemas import (
     ContentListSchema, ContentDetailSchema, ReviewSchema, RelatedContentSchema,
     ContentListResponse
 )
-# --- ▲ [수정 완료] ▲ ---
 
 # 1. APIRouter 인스턴스 생성
 router = APIRouter(
@@ -23,39 +19,48 @@ router = APIRouter(
 )
 
 # 2. GET /list 엔드포인트 정의 (MainPage용)
-# --- ▼ [수정] search 파라미터 추가 및 검색 로직 적용 ▼ ---
+# --- ▼ [핵심 수정] 검색 로직 전체 변경 ▼ ---
 @router.get("/list", response_model=ContentListResponse)
 def get_content_list(
     db: Session = Depends(get_db),
     page: int = Query(1, ge=1, description="페이지 번호"),
     per_page: int = Query(9, ge=1, le=50, description="페이지당 콘텐츠 개수 (기본 9개)"),
-    search: Optional[str] = Query(None, description="검색어 (콘텐츠 제목 또는 태그)") # [신규]
+    
+    # [수정] search: Optional[str] -> search_terms: Optional[List[str]]
+    # 프론트엔드에서 ?q=먹고싶다&q=짜장면 형태로 호출
+    search_terms: Optional[List[str]] = Query(None, alias="q", description="검색어 목록 (제목 또는 태그)")
 ):
     """
-    상태가 'Active'인 모든 콘텐츠의 목록을 **페이지네이션**하여 조회하고
-    가이드 닉네임, 메인 이미지 URL, **전체 개수**를 포함하여 반환합니다.
-    **검색어(제목 또는 태그)**가 있으면 필터링합니다.
+    상태가 'Active'인 모든 콘텐츠의 목록을 페이지네이션하여 조회합니다.
+    검색어(q=)가 있으면 각 단어를 제목 또는 태그와 '부분 일치(OR)'하여 필터링합니다.
     """
     
+    # --- ▼ [수정] 검색 필터 조건을 먼저 구성합니다 (중복 제거) ▼ ---
+    common_search_filter = None
+    if search_terms:
+        search_conditions = []
+        for term in search_terms:
+            if term.strip(): # 빈 문자열이 아닌 경우에만
+                term_filter = f"%{term}%"
+                # OR 조건: 콘텐츠 제목(title) 또는 태그 이름(name)
+                search_conditions.append(Content.title.ilike(term_filter))
+                search_conditions.append(Tag.name.ilike(term_filter))
+        
+        if search_conditions: # 유효한 검색 조건이 있을 경우에만
+            common_search_filter = or_(*search_conditions)
+    # --- ▲ [수정 완료] ▲ ---
+
+    
     # 1. 전체 개수 쿼리 (페이지네이션 전에)
-    # [수정] func.count(Content.id) -> func.count(distinct(Content.id))
     total_count_query = db.query(func.count(distinct(Content.id))).filter(Content.status == "Active")
 
-    # --- ▼ [신규] 검색어 필터링 로직 (Count 쿼리용) ▼ ---
-    if search:
-        search_term = f"%{search}%"
+    # [수정] 검색어가 있을 경우에만 JOIN 및 FILTER 적용
+    if common_search_filter is not None:
         total_count_query = total_count_query.join(
             ContentTag, Content.id == ContentTag.contents_id
         ).join(
             Tag, ContentTag.tag_id == Tag.id
-        ).filter(
-            # OR 조건: 콘텐츠 제목(title) 또는 태그 이름(name)
-            or_(
-                Content.title.ilike(search_term),
-                Tag.name.ilike(search_term)
-            )
-        )
-    # --- ▲ [신규] 로직 완료 ▲ ---
+        ).filter(common_search_filter)
     
     total_count = total_count_query.scalar() or 0
 
@@ -72,7 +77,7 @@ def get_content_list(
         User.nickname.label("guide_nickname"),
         ContentImage.image_url.label("main_image_url"),
         Content.guide_id,
-        Content.created_at  # 👈 [FIX] 500 오류 해결 (order_by를 위해 select 목록에 추가)
+        Content.created_at  # 👈 정렬을 위해 select 목록에 포함
     ).join(
         GuideProfile, Content.guide_id == GuideProfile.users_id
     ).join(
@@ -83,24 +88,16 @@ def get_content_list(
         Content.status == "Active"
     )
 
-    # --- ▼ [신규] 검색어 필터링 로직 (Results 쿼리용) ▼ ---
-    # (total_count_query와 동일한 JOIN 및 FILTER 적용)
-    if search:
-        search_term = f"%{search}%"
+    # [수정] 검색어가 있을 경우에만 JOIN 및 FILTER 적용
+    if common_search_filter is not None:
         results_query = results_query.join(
             ContentTag, Content.id == ContentTag.contents_id
         ).join(
             Tag, ContentTag.tag_id == Tag.id
-        ).filter(
-            or_(
-                Content.title.ilike(search_term),
-                Tag.name.ilike(search_term)
-            )
-        )
-    # --- ▲ [신규] 로직 완료 ▲ ---
+        ).filter(common_search_filter)
 
     # --- ▼ [수정] 쿼리 실행 (distinct, 정렬, 페이지네이션) ▼ ---
-    results = results_query.distinct().order_by( # [신규] distinct() 추가
+    results = results_query.distinct().order_by(
         Content.created_at.desc()
     ).offset(
         (page - 1) * per_page
@@ -123,7 +120,6 @@ def get_content_list(
                 guide_nickname=row.guide_nickname if row.guide_nickname else "정보 없음",
                 main_image_url=row.main_image_url,
                 guide_id=row.guide_id
-                # (row.created_at은 select되었지만, ContentListSchema에 없으므로 무시됨)
             )
             content_list.append(schema_instance)
         except Exception as e:
@@ -136,7 +132,7 @@ def get_content_list(
     )
 # --- ▲ [수정 완료] ▲ ---
 
-# --- ▼ [수정] 인기 태그 목록 엔드포인트 (AttributeError 'scalars' 수정) ▼ ---
+# --- ▼ [수정] 인기 태그 목록 엔드포인트 (기존 코드 유지) ▼ ---
 @router.get("/tags", response_model=List[str])
 def get_popular_tags(
     limit: int = Query(10, ge=1, le=50, description="반환할 태그 개수"),
@@ -145,28 +141,24 @@ def get_popular_tags(
     """
     가장 많이 사용된 태그(Popular Tags) 목록을 반환합니다.
     """
-    # [FIX] 'models.' 접두사 제거 (models.Tag -> Tag)
     query = db.query(
         Tag.name 
     ).join(
-        ContentTag, Tag.id == ContentTag.tag_id # [FIX] models.ContentTag -> ContentTag
+        ContentTag, Tag.id == ContentTag.tag_id
     ).group_by(
-        Tag.id, Tag.name # [FIX] models.Tag -> Tag
+        Tag.id, Tag.name
     ).order_by(
-        func.count(ContentTag.contents_id).desc() # [FIX] models.ContentTag -> ContentTag
+        func.count(ContentTag.contents_id).desc()
     ).limit(limit)
     
-    # [FIX] .scalars().all() -> .all() 후 리스트 컴프리헨션으로 수정
-    # query.all()은 [('태그1',), ('태그2',)] 형태의 튜플 리스트를 반환
     results = query.all() 
-    # 튜플 리스트를 ['태그1', '태그2'] 형태의 문자열 리스트로 변환
     tags = [row[0] for row in results]
     return tags
 # --- ▲ [수정] 엔드포인트 완료 ▲ ---
 
 
 # 3. GET /{content_id} 상세 조회 엔드포인트 (DetailPage용)
-# (이하 코드는 변경 사항 없음)
+# (이하 코드는 변경 사항 없음 - 기존 코드 유지)
 @router.get("/{content_id}", response_model=ContentDetailSchema)
 def get_content_detail(
     content_id: int,
@@ -243,25 +235,24 @@ def get_content_detail(
     reviews_data = []
     for review in review_results:
         try:
-            # model_validate 대신 수동으로 생성 (alias 'user' 사용)
             reviews_data.append(ReviewSchema(
                 id=review.id,
-                # schemas.py의 `ReviewSchema`는 'user'라는 alias를 사용
                 user=review.reviewer.nickname if review.reviewer else "알 수 없음", 
                 rating=float(review.rating),
                 text=review.text,
                 created_at=review.created_at
+                # [참고] review.tags는 schemas.py에서 정의했으므로,
+                # Eager loading을 추가하면(예: joinedload(Review.review_tags).joinedload(ReviewTag.tag))
+                # 자동으로 포함시킬 수 있습니다. (현재는 로드되지 않음)
             ))
         except Exception as e:
             print(f"Error converting review ID {review.id} to schema: {e}")
 
-    # --- ▼▼▼ 요청하신 수정사항 ▼▼▼ ---
     # 6. 관련 콘텐츠 쿼리 (페이지네이션 적용)
     # 6-1. 전체 관련 콘텐츠 개수 계산
     total_related_count = db.query(func.count(Content.id)).filter(
-        # Content.location == content.location, # <-- [수정] 관련성 필터(지역) 제거
-        Content.id != content_id,                # 현재 콘텐츠 제외
-        Content.status == "Active"               # 활성 콘텐츠만
+        Content.id != content_id,
+        Content.status == "Active"
     ).scalar() or 0
 
     # 6-2. 요청된 페이지의 관련 콘텐츠 목록 쿼리
@@ -273,17 +264,15 @@ def get_content_detail(
     ).outerjoin(
         ContentImage, (Content.id == ContentImage.contents_id) & (ContentImage.is_main == True)
     ).filter(
-        # Content.location == content.location, # <-- [수정] 관련성 필터(지역) 제거
-        Content.id != content_id,               # 현재 콘텐츠 제외
-        Content.status == "Active"              # 활성 콘텐츠만
+        Content.id != content_id,
+        Content.status == "Active"
     ).order_by(
-        Content.created_at.desc() # 최신순 정렬
+        Content.created_at.desc()
     ).offset(
         (related_page - 1) * related_per_page
     ).limit(
         related_per_page
     ).all()
-    # --- ▲▲▲ 요청하신 수정 완료 ▲▲▲ ---
 
     # RelatedContentSchema 변환
     related_contents_data = []
@@ -307,11 +296,7 @@ def get_content_detail(
         ContentTag.contents_id == content_id
     ).all()
     
-    # [FIX] 스키마 수정 반영: `List[str]` -> `List[TagSchema]`
-    # ContentDetailSchema가 이제 `List[TagSchema]` 객체를 기대하므로
-    # `[tag.name for tag in tag_results]` 대신 `tag_results` 객체 리스트를 그대로 전달합니다.
-    # Pydantic이 `from_attributes=True`를 통해 자동으로 변환합니다.
-    tags_data = tag_results
+    tags_data = tag_results # (schemas.py의 List[TagSchema]에 맞게 객체 리스트 전달)
 
     # 9. 최종 데이터 조합
     try:
@@ -328,12 +313,12 @@ def get_content_detail(
             guide_nickname=guide_nickname,
             guide_avg_rating=guide_avg_rating,
             guide_id=content.guide_id,
-            reviews=reviews_data,            # 현재 페이지 리뷰
-            related_contents=related_contents_data, # 현재 페이지 관련 콘텐츠
-            tags=tags_data, # 👈 [FIX] 수정된 tags_data 전달
-            rating=avg_content_rating,           # 전체 평균 평점
-            review_count=total_reviews_count,    # 전체 리뷰 개수
-            total_related_count=total_related_count # 전체 관련 콘텐츠 개수
+            reviews=reviews_data,
+            related_contents=related_contents_data,
+            tags=tags_data,
+            rating=avg_content_rating,
+            review_count=total_reviews_count,
+            total_related_count=total_related_count
         )
     except Exception as e:
         print(f"Error creating ContentDetailSchema for content ID {content_id}: {e}")

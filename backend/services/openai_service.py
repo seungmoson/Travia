@@ -1,5 +1,3 @@
-# backend/services/openai_service.py (강화된 버전)
-
 import os
 from openai import OpenAI
 from dotenv import load_dotenv
@@ -13,15 +11,25 @@ except TypeError:
     print("❗️ OPENAI_API_KEY가 설정되지 않았습니다. .env 파일을 확인해주세요.")
     client = None
 
-def extract_tags_from_text(text: str) -> list:
-    """주어진 텍스트에서 AI를 사용하여 관련 태그를 추출합니다."""
-    if not client or not text:
+# --- ▼ [수정됨] 1. 함수 시그니처 변경 ▼ ---
+def extract_tags_from_text(review_text: str, content_title: str) -> list:
+    """
+    주어진 리뷰 텍스트와 **컨텐츠 제목**에서 AI를 사용하여 관련 태그를 추출합니다.
+    """
+    # 리뷰 텍스트가 없으면 태그 추출 불가
+    if not client or not review_text:
         return []
+# --- ▲ [수정 완료] ▲ ---
 
-    # --- [수정됨] 프롬프트 강화 ---
+    # --- [수정됨] 프롬프트 강화 (컨텐츠 제목 컨텍스트 추가) ---
     system_prompt = """
     당신은 국내 여행 후기에서 검색과 분류에 가장 유용한 핵심 명사 태그만을 추출하는 정제 전문가입니다.
-    사용자의 여행 후기를 읽고, 다음 세 가지 핵심 카테고리에 해당하는 키워드를 **최대 3개**까지 추출하여 쉼표(,)로 구분된 목록으로 만들어주세요.
+
+    **당신은 '컨텐츠 제목'과 '여행자 리뷰' 두 가지 정보를 받게 됩니다.**
+    '컨텐츠 제목'은 리뷰가 작성된 상품의 핵심 주제(장소, 활동, 음식)를 알려주는 **가장 중요한 맥락 정보**입니다.
+    '여행자 리뷰'는 실제 경험을 담고 있습니다.
+
+    두 정보를 조합하여, 다음 세 가지 핵심 카테고리에 해당하는 키워드를 **최대 3개**까지 추출하여 쉼표(,)로 구분된 목록으로 만들어주세요.
 
     **핵심 카테고리 (구체적인 명사만 허용):**
     1.  **장소/지역:** 구체적인 지명, 건물, 관광지 **및 해당 장소를 포함하는 대표 도시/지역**. (예: 제주도, 경복궁, 해운대, 전주한옥마을)
@@ -41,28 +49,37 @@ def extract_tags_from_text(text: str) -> list:
     예시 출력: '대전, 성심당, 튀김소보로'
     예시 출력: (만약 태그가 없다면 그냥 빈칸)
     """
-    # --- [수정 완료] ---
+    
+    # --- ▼ [수정됨] 2. User 메시지 포맷 변경 ▼ ---
+    # AI에게 두 정보를 명확히 구분하여 전달
+    user_content = f"""
+    [컨텐츠 제목]
+    {content_title}
+
+    [여행자 리뷰]
+    {review_text}
+    """
+    # --- ▲ [수정 완료] ▲ ---
     
     try:
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": text}
+                # --- ▼ [수정됨] 3. 수정된 user_content 사용 ▼ ---
+                {"role": "user", "content": user_content}
+                # --- ▲ [수정 완료] ▲ ---
             ],
             temperature=0.2,
             max_tokens=50
         )
         content = response.choices[0].message.content
         
-        # --- [수정됨] 1. 후처리: 괄호, 따옴표, 콜론(:) 등 불필요한 문자 제거 ---
-        # "음식/물건: 짜장면" -> "음식/물건 짜장면"
+        # --- [유지] 4. 후처리 로직 (기존과 동일) ---
         content = content.replace("(", "").replace(")", "").replace("'", "").replace('"', "").replace(':', "")
         
         tags_from_ai = [tag.strip() for tag in content.split(',') if tag.strip()]
         
-        # --- [수정됨] 2. 후처리: 품질 관리 필터링 ---
-        # AI가 생성할 수 있는 모든 종류의 쓰레기 단어 목록
         GARBAGE_SUBSTRINGS = [
             '반환', '추출', '없음', '키워드', '해당', '태그', 
             '장소', '지역', '음식', '물건', '활동', '경험',
@@ -73,11 +90,9 @@ def extract_tags_from_text(text: str) -> list:
         for tag in tags_from_ai:
             is_clean = True
             
-            # 1. 태그가 기호(-)이거나 너무 짧으면(1글자) 버림
             if len(tag) <= 1:
-                 is_clean = False
-                 
-            # 2. '쓰레기 단어 목록' 중 하나라도 포함되어 있으면 버림
+                is_clean = False
+                
             if is_clean:
                 for garbage in GARBAGE_SUBSTRINGS:
                     if garbage in tag:
