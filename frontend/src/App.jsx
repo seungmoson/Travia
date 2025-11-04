@@ -9,6 +9,9 @@ import BookingPage from './pages/BookingPage.jsx';
 import DetailPage from './pages/DetailPage.jsx';
 import MyPage from './pages/MyPage.jsx';
 import GuideDashboard from './pages/GuideDashboard.jsx';
+// --- ▼ [신규] MapPage import 추가 ▼ ---
+import MapPage from './pages/MapPage.jsx';
+// --- ▲ [신규] ▲ ---
 import { UserIcon } from './assets/Icons.jsx';
 import './index.css';
 
@@ -43,7 +46,7 @@ const App = () => {
     const [user, setUser] = useState({
         isLoggedIn: false,
         username: 'Guest',
-        id: null,         // 사용자 ID (BookingBox 비교용)
+        id: null,        // 사용자 ID (BookingBox 비교용)
         user_type: null,  // 'traveler' 또는 'guide'
     });
 
@@ -145,7 +148,7 @@ const App = () => {
      */
     const handleModalLogin = () => {
         setShowAuthModal(false); // 모달 닫고
-        navigateTo('login');     // 로그인 페이지로 이동
+        navigateTo('login');    // 로그인 페이지로 이동
     };
 
     /**
@@ -153,7 +156,7 @@ const App = () => {
      */
     const handleModalSignup = () => {
         setShowAuthModal(false); // 모달 닫고
-        navigateTo('signup');    // 회원가입 페이지로 이동
+        navigateTo('signup');   // 회원가입 페이지로 이동
     };
     // --- ▲ [신규] ▲ ---
 
@@ -174,6 +177,8 @@ const App = () => {
         } else {
             setCurrentPage(page);
             setCurrentContentId(contentId); // 상세/예약 페이지 이동 시 ID 설정
+            // [추가] 페이지 이동 시 상단으로 스크롤
+            window.scrollTo(0, 0);
         }
     };
 
@@ -208,6 +213,11 @@ const App = () => {
             case 'guideDashboard':
                 return <GuideDashboard user={user} navigateTo={navigateTo} />;
 
+            // --- ▼ [신규] 'map' 페이지 케이스 추가 ▼ ---
+            case 'map':
+                return <MapPage navigateTo={navigateTo} />;
+            // --- ▲ [신규] ▲ ---
+
             case 'main':
             default:
                 return <MainPage user={user} navigateTo={navigateTo} />;
@@ -220,13 +230,14 @@ const App = () => {
     return (
         <div className="min-h-screen bg-gray-100 font-sans antialiased">
             {/* 네비게이션 바 (Tailwind CSS) */}
-            <nav className="bg-white shadow-md sticky top-0 z-10">
+            {/* [수정] map 페이지에서는 nav를 숨길 수도 있지만, 일단은 z-index로 지도 위에 표시되도록 둡니다. */}
+            <nav className="bg-white shadow-md sticky top-0 z-20"> {/* z-index 증가 */}
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between h-16">
                         {/* 로고/타이틀 */}
                         <div className="flex items-center space-x-3 cursor-pointer" onClick={() => navigateTo('main')}>
                             <img
-                                src="/image3.png"
+                                src="/image3.png" // public 폴더의 이미지를 참조합니다.
                                 alt="Travia Logo"
                                 className="h-10 w-auto object-contain"
                             />
@@ -288,15 +299,28 @@ const App = () => {
                 </div>
             </nav>
 
-            {/* 페이지 내용 렌더링 */}
-            <main className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
-                {renderPage()}
-            </main>
+            {/* --- ▼ [수정] 페이지 내용 렌더링 (지도 페이지 분기 처리) ▼ --- */}
+            {/* 'map' 페이지일 때는 max-w-7xl, p-4 등 패딩을 제거하여 지도를 꽉 채웁니다. */}
+            {currentPage === 'map' ? (
+                <main>
+                    {renderPage()}
+                </main>
+            ) : (
+                <main className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+                    {renderPage()}
+                </main>
+            )}
+            {/* --- ▲ [수정] ▲ --- */}
 
-            {/* Footer */}
-            <footer className="mt-10 p-4 text-center text-gray-500 text-sm border-t border-gray-200 bg-white">
-                © 2025 Travia AI Platform. AI와 데이터로 만드는 개인화 여행.
-            </footer>
+
+            {/* --- ▼ [수정] Footer (지도 페이지에서는 숨김) ▼ --- */}
+            {currentPage !== 'map' && (
+                <footer className="mt-10 p-4 text-center text-gray-500 text-sm border-t border-gray-200 bg-white">
+                    © 2025 Travia AI Platform. AI와 데이터로 만드는 개인화 여행.
+                </footer>
+            )}
+            {/* --- ▲ [수정] ▲ --- */}
+
 
             {/* --- ▼ [신규] 모달 렌더링 ▼ --- */}
             {/* showAuthModal state에 따라 모달이 표시되거나 숨겨집니다. */}
@@ -312,5 +336,4 @@ const App = () => {
 };
 
 export default App;
-
 

@@ -348,6 +348,29 @@ const MainPage = ({ user, navigateTo }) => {
             {/* --- ▼ [오류 수정] 클릭 문제 해결을 위한 z-index 래퍼 (이제 필요 없으므로 제거) ▼ --- */}
             <div className="space-y-6">
             
+                {/* --- ▼ [신규] '내 근처' 지도 배너 ▼ --- */}
+                {/* 검색 조건이 없을 때만 (기본 메인 페이지일 때만) 배너를 표시합니다. */}
+                {!hasSearchCriteria && (
+                    <div
+                        style={{
+                            backgroundColor: '#f0f0f0',
+                            padding: '40px',
+                            textAlign: 'center',
+                            cursor: 'pointer',
+                            // marginTop: '24px', // space-y-6에 포함됨
+                            border: '1px solid #ccc',
+                            borderRadius: '8px'
+                        }}
+                        className="hover:shadow-lg transition-shadow"
+                        onClick={() => navigateTo('map')} // 👈 [핵심] App.jsx의 navigateTo('map') 호출
+                    >
+                        <h2 className="text-2xl font-bold mb-2">🗺️ '내 근처' 투어 상품 찾기</h2>
+                        <p>지도를 펼쳐서 주변의 투어 상품을 확인하세요! (클릭)</p>
+                    </div>
+                )}
+                {/* --- ▲ [신규] 배너 완료 ▲ --- */}
+
+
                 {/* --- ▼ [삭제] 사이드 인기 태그 섹션 ▼ --- */}
                 {/* {popularTags.length > 0 && !hasSearchCriteria && (
                     ...
@@ -615,4 +638,3 @@ const SearchBar = ({
 // --- ▲ [수정 완료] ▲ ---
 
 export default MainPage;
-
