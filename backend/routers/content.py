@@ -132,14 +132,15 @@ def get_content_list(
     )
 # --- ▲ [수정 완료] ▲ ---
 
-# --- ▼ [수정] 인기 태그 목록 엔드포인트 (기존 코드 유지) ▼ ---
+# --- ▼ [수정] 인기 태그 목록 엔드포인트 (limit 제거) ▼ ---
 @router.get("/tags", response_model=List[str])
 def get_popular_tags(
-    limit: int = Query(10, ge=1, le=50, description="반환할 태그 개수"),
-    db: Session = Depends(get_db)
+    # 'limit' 쿼리 파라미터 제거
+    db: Session = Depends(get_db) 
 ):
     """
-    가장 많이 사용된 태그(Popular Tags) 목록을 반환합니다.
+    [수정] 가장 많이 사용된 태그(Popular Tags) '전체' 목록을 반환합니다.
+    (limit 파라미터 제거)
     """
     query = db.query(
         Tag.name 
@@ -149,7 +150,8 @@ def get_popular_tags(
         Tag.id, Tag.name
     ).order_by(
         func.count(ContentTag.contents_id).desc()
-    ).limit(limit)
+    )
+    # .limit(limit) 구문 제거
     
     results = query.all() 
     tags = [row[0] for row in results]

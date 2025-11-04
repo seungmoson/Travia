@@ -107,9 +107,21 @@ const LoginPage = ({ login, navigateTo }) => {
     return (
         <div className="flex items-center justify-center min-h-screen bg-gray-50">
             <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-2xl space-y-6">
-                <h2 className="text-3xl font-extrabold text-gray-900 text-center">
-                    Travia 로그인
-                </h2>
+                
+                {/* --- ▼ [신규] 로고 추가 ▼ --- */}
+                <div className="flex flex-col items-center">
+                    <img 
+                        src="/image3.png" 
+                        alt="Travia Logo" 
+                        className="w-48 mb-2" 
+                        onError={(e) => { e.target.src = 'https://placehold.co/192x64/6366F1/FFFFFF?text=Travia+Logo'; e.target.onerror = null; }}
+                    />
+                    <h2 className="text-3xl font-extrabold text-gray-900 text-center mt-4">
+                        Travia 로그인
+                    </h2>
+                </div>
+                {/* --- ▲ [신규] 로고 추가 완료 ▲ --- */}
+
                 {errorMessage && (
                     <div className="p-3 text-sm text-red-700 bg-red-100 rounded-lg text-center font-medium">
                         {errorMessage}
