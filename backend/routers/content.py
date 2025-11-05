@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query  # 👈 [수정] APRouter -> APIRouter
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, or_, distinct
 from typing import List, Optional
@@ -9,25 +9,21 @@ from database import get_db
 from models import Content, GuideProfile, User, ContentImage, Booking, Review, Tag, ContentTag
 from schemas import (
     ContentListSchema, ContentDetailSchema, ReviewSchema, RelatedContentSchema,
-    ContentListResponse
+    ContentListResponse,
+    MapContentSchema
 )
 
 # 1. APIRouter 인스턴스 생성
 router = APIRouter(
-    # prefix="/content",  # 👈 [FIX] main.py에서 이미 prefix를 정의했으므로 중복 제거
-    tags=["content"]    # [추천] FastAPI 문서용 태그 추가
+    tags=["content"]
 )
 
 # 2. GET /list 엔드포인트 정의 (MainPage용)
-# --- ▼ [핵심 수정] 검색 로직 전체 변경 ▼ ---
 @router.get("/list", response_model=ContentListResponse)
 def get_content_list(
     db: Session = Depends(get_db),
     page: int = Query(1, ge=1, description="페이지 번호"),
     per_page: int = Query(9, ge=1, le=50, description="페이지당 콘텐츠 개수 (기본 9개)"),
-    
-    # [수정] search: Optional[str] -> search_terms: Optional[List[str]]
-    # 프론트엔드에서 ?q=먹고싶다&q=짜장면 형태로 호출
     search_terms: Optional[List[str]] = Query(None, alias="q", description="검색어 목록 (제목 또는 태그)")
 ):
     """
@@ -35,26 +31,22 @@ def get_content_list(
     검색어(q=)가 있으면 각 단어를 제목 또는 태그와 '부분 일치(OR)'하여 필터링합니다.
     """
     
-    # --- ▼ [수정] 검색 필터 조건을 먼저 구성합니다 (중복 제거) ▼ ---
     common_search_filter = None
     if search_terms:
         search_conditions = []
         for term in search_terms:
-            if term.strip(): # 빈 문자열이 아닌 경우에만
+            if term.strip():
                 term_filter = f"%{term}%"
-                # OR 조건: 콘텐츠 제목(title) 또는 태그 이름(name)
                 search_conditions.append(Content.title.ilike(term_filter))
                 search_conditions.append(Tag.name.ilike(term_filter))
         
-        if search_conditions: # 유효한 검색 조건이 있을 경우에만
+        if search_conditions:
             common_search_filter = or_(*search_conditions)
-    # --- ▲ [수정 완료] ▲ ---
 
     
-    # 1. 전체 개수 쿼리 (페이지네이션 전에)
+    # 1. 전체 개수 쿼리
     total_count_query = db.query(func.count(distinct(Content.id))).filter(Content.status == "Active")
 
-    # [수정] 검색어가 있을 경우에만 JOIN 및 FILTER 적용
     if common_search_filter is not None:
         total_count_query = total_count_query.join(
             ContentTag, Content.id == ContentTag.contents_id
@@ -67,7 +59,7 @@ def get_content_list(
     if total_count == 0:
         return ContentListResponse(contents=[], total_count=0)
 
-    # 2. 실제 목록 쿼리 (기본 쿼리)
+    # 2. 실제 목록 쿼리
     results_query = db.query(
         Content.id,
         Content.title,
@@ -77,7 +69,7 @@ def get_content_list(
         User.nickname.label("guide_nickname"),
         ContentImage.image_url.label("main_image_url"),
         Content.guide_id,
-        Content.created_at  # 👈 정렬을 위해 select 목록에 포함
+        Content.created_at
     ).join(
         GuideProfile, Content.guide_id == GuideProfile.users_id
     ).join(
@@ -88,7 +80,6 @@ def get_content_list(
         Content.status == "Active"
     )
 
-    # [수정] 검색어가 있을 경우에만 JOIN 및 FILTER 적용
     if common_search_filter is not None:
         results_query = results_query.join(
             ContentTag, Content.id == ContentTag.contents_id
@@ -96,7 +87,6 @@ def get_content_list(
             Tag, ContentTag.tag_id == Tag.id
         ).filter(common_search_filter)
 
-    # --- ▼ [수정] 쿼리 실행 (distinct, 정렬, 페이지네이션) ▼ ---
     results = results_query.distinct().order_by(
         Content.created_at.desc()
     ).offset(
@@ -104,10 +94,9 @@ def get_content_list(
     ).limit(
         per_page
     ).all()
-    # --- ▲ [수정 완료] ▲ ---
 
 
-    # 3. 스키마 변환 (기존 코드 유지)
+    # 3. 스키마 변환
     content_list = []
     for row in results:
         try:
@@ -125,17 +114,53 @@ def get_content_list(
         except Exception as e:
             print(f"Error converting content ID {row.id} to schema: {e}")
 
-    # 4. 최종 응답 반환 (ContentListResponse 객체 사용)
+    # 4. 최종 응답 반환
     return ContentListResponse(
         contents=content_list,
         total_count=total_count
     )
+
+
+# --- ▼ [수정] 지도 데이터용 엔드포인트 (area를 선택적으로 변경) ▼ ---
+@router.get("/map-data", response_model=List[MapContentSchema])
+def get_map_content_by_area(
+    # [수정] area를 필수(str)에서 선택(Optional[str])으로 변경
+    # [수정] 기본값을 Query(...)에서 Query(None, ...)로 변경
+    area: Optional[str] = Query(None, description="GeoJSON의 'sggnm' (예: 해운대구). 생략 시 전체 반환"),
+    db: Session = Depends(get_db)
+):
+    """
+    [지도 전용] 특정 지역(area) 또는 '전체' 콘텐츠 목록을 지도 마커용으로 반환합니다.
+    - area 쿼리 파라미터가 없으면, 위/경도 값이 있는 '모든' 콘텐츠를 반환합니다.
+    - area 쿼리 파라미터가 있으면, 해당 지역의 콘텐츠만 필터링합니다.
+    """
+    
+    # 1. 기본 쿼리: Active 상태이고, 위/경도 값이 있는 모든 콘텐츠
+    query = db.query(Content).filter(
+        Content.status == "Active",
+        Content.latitude.isnot(None),
+        Content.longitude.isnot(None)
+    )
+    
+    # 2. area 파라미터가 '주어진 경우에만' 위치 필터링을 추가
+    if area:
+        query = query.filter(Content.location == area) 
+        # 예: Content.location == '해운대구'
+    
+    # 3. 쿼리 실행
+    contents = query.all()
+    
+    if not contents:
+        return []
+    
+    # Pydantic이 쿼리 결과를 MapContentSchema 리스트로 자동 변환
+    return contents
 # --- ▲ [수정 완료] ▲ ---
 
-# --- ▼ [수정] 인기 태그 목록 엔드포인트 (limit 제거) ▼ ---
+
+# --- ▼ 인기 태그 목록 엔드포인트 ▼ ---
 @router.get("/tags", response_model=List[str])
 def get_popular_tags(
-    # 'limit' 쿼리 파라미터 제거
     db: Session = Depends(get_db) 
 ):
     """
@@ -151,23 +176,19 @@ def get_popular_tags(
     ).order_by(
         func.count(ContentTag.contents_id).desc()
     )
-    # .limit(limit) 구문 제거
     
     results = query.all() 
     tags = [row[0] for row in results]
     return tags
-# --- ▲ [수정] 엔드포인트 완료 ▲ ---
+# --- ▲ 엔드포인트 완료 ▲ ---
 
 
 # 3. GET /{content_id} 상세 조회 엔드포인트 (DetailPage용)
-# (이하 코드는 변경 사항 없음 - 기존 코드 유지)
 @router.get("/{content_id}", response_model=ContentDetailSchema)
 def get_content_detail(
     content_id: int,
-    # 리뷰 페이지네이션 쿼리 파라미터
     reviews_page: int = Query(1, ge=1, description="리뷰 목록 페이지 번호"),
     reviews_per_page: int = Query(5, ge=1, le=50, description="페이지당 리뷰 개수"),
-    # 관련 콘텐츠 페이지네이션 쿼리 파라미터
     related_page: int = Query(1, ge=1, description="관련 콘텐츠 목록 페이지 번호"),
     related_per_page: int = Query(4, ge=1, le=20, description="페이지당 관련 콘텐츠 개수"),
     db: Session = Depends(get_db)
@@ -177,7 +198,7 @@ def get_content_detail(
     **리뷰 목록 및 관련 콘텐츠 목록은 페이지네이션 처리됩니다.**
     """
 
-    # 1. 기본 콘텐츠 상세 정보 조회 (가이드 정보 즉시 로드)
+    # 1. 기본 콘텐츠 상세 정보 조회
     content = db.query(Content).options(
         joinedload(Content.guide).joinedload(GuideProfile.user)
     ).filter(
@@ -220,7 +241,7 @@ def get_content_detail(
 
     # 5-2. 요청된 페이지의 리뷰 목록 쿼리
     review_results = db.query(Review).options(
-        joinedload(Review.reviewer) # Review.reviewer (User) 관계 로드
+        joinedload(Review.reviewer)
     ).join(
         Booking, Review.booking_id == Booking.id
     ).filter(
@@ -243,9 +264,6 @@ def get_content_detail(
                 rating=float(review.rating),
                 text=review.text,
                 created_at=review.created_at
-                # [참고] review.tags는 schemas.py에서 정의했으므로,
-                # Eager loading을 추가하면(예: joinedload(Review.review_tags).joinedload(ReviewTag.tag))
-                # 자동으로 포함시킬 수 있습니다. (현재는 로드되지 않음)
             ))
         except Exception as e:
             print(f"Error converting review ID {review.id} to schema: {e}")
@@ -291,14 +309,14 @@ def get_content_detail(
         except Exception as e:
             print(f"Error converting related content ID {r.id} to schema: {e}")
 
-    # 7. 실제 태그 쿼리
+    # 7. 실제 태그 쿼리 (Tags가 없는 경우를 대비)
     tag_results = db.query(Tag).join(
         ContentTag, Tag.id == ContentTag.tag_id
     ).filter(
         ContentTag.contents_id == content_id
     ).all()
     
-    tags_data = tag_results # (schemas.py의 List[TagSchema]에 맞게 객체 리스트 전달)
+    tags_data = tag_results
 
     # 9. 최종 데이터 조합
     try:

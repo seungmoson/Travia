@@ -7,8 +7,6 @@ from datetime import datetime
 # ==================================================
 
 # Content 목록 조회 시 응답 스키마 (MainPage용)
-# [참고] 이 스키마는 /content/list 검색 결과에 사용되며, 
-# 목록 페이지에서는 태그를 보여주지 않으므로 수정이 필요 없습니다.
 class ContentListSchema(BaseModel):
     id: int = Field(..., description="콘텐츠 고유 ID")
     title: str = Field(..., description="콘텐츠 제목")
@@ -23,7 +21,6 @@ class ContentListSchema(BaseModel):
         from_attributes = True
 
 # ContentList 무한 스크롤용 응답 스키마
-# [참고] 이 스키마도 /content/list 응답 래퍼이므로 수정이 필요 없습니다.
 class ContentListResponse(BaseModel):
     contents: List[ContentListSchema] = Field(..., description="현재 페이지의 콘텐츠 목록")
     total_count: int = Field(..., description="조건에 맞는 전체 콘텐츠 개수")
@@ -32,7 +29,7 @@ class ContentListResponse(BaseModel):
         from_attributes = True
 
 
-# --- ▼ [신규 추가] Tag 스키마 (Detail Page용) ▼ ---
+# --- ▼ Tag 스키마 (Detail Page용) ▼ ---
 class TagSchema(BaseModel):
     """
     Tag 모델을 위한 Pydantic 스키마
@@ -42,7 +39,7 @@ class TagSchema(BaseModel):
 
     class Config:
         from_attributes = True
-# --- ▲ [신규 추가 완료] ▲ ---
+# --- ▲ ---
 
 
 # DetailPage의 'ReviewList' 컴포넌트용 스키마
@@ -79,11 +76,7 @@ class ContentDetailSchema(ContentListSchema):
     rating: Optional[float] = Field(None, description="콘텐츠 평균 평점")
     review_count: Optional[int] = Field(None, description="콘텐츠의 '전체' 리뷰 총 개수")
     
-    # --- ▼ [수정] tags 필드를 List[str]에서 List[TagSchema]로 변경 ▼ ---
-    # ORM의 content.tags (List[models.Tag]) 관계를 
-    # 'from_attributes = True'로 자동 매핑하기 위함
     tags: List[TagSchema] = Field(default_factory=list, description="콘텐츠 태그 목록")
-    # --- ▲ [수정 완료] ▲ ---
     
     reviews: List[ReviewSchema] = Field(default_factory=list, description="현재 페이지의 콘텐츠 리뷰 목록")
     related_contents: List[RelatedContentSchema] = Field(default_factory=list, description="현재 페이지의 관련 콘텐츠 목록")
@@ -91,6 +84,29 @@ class ContentDetailSchema(ContentListSchema):
 
     class Config:
         from_attributes = True
+
+# --- ▼ [수정] 지도 마커용 스키마 ▼ ---
+class MapContentSchema(BaseModel):
+    """
+    지도 마커 표시에 필요한 최소한의 콘텐츠 정보 스키마
+    (GET /api/contents/map-data 응답용)
+    """
+    id: int = Field(..., description="콘텐츠 ID")
+    title: str = Field(..., description="콘텐츠 제목")
+    
+    # --- ▼ [수정] 'location' 필드 추가 ▼ ---
+    # 이 필드가 누락되어 직렬화(Serialization) 과정에서 
+    # 다른 필드에도 영향을 준 것으로 보입니다.
+    # 또한, 프론트엔드에서 디버깅용으로 사용될 수 있습니다.
+    location: str = Field(..., description="지역명 (예: 해운대구)")
+    # --- ▲ ---
+
+    latitude: Optional[float] = Field(None, description="위도 (lat)")
+    longitude: Optional[float] = Field(None, description="경도 (lng)")
+
+    class Config:
+        from_attributes = True
+# --- ▲ [수정 완료] ▲ ---
 
 
 # ==================================================
@@ -105,9 +121,7 @@ class LoginResponse(BaseModel):
     token_type: str = Field("bearer", description="토큰 타입 (고정값 'bearer')")
 
 
-# --- ▼▼▼ [신규] 회원가입(Signup) 관련 스키마 ▼▼▼ ---
-
-# UserPublic: 회원가입 응답 및 토큰 페이로드 검증용
+# --- 회원가입(Signup) 관련 스키마 ---
 class UserPublic(BaseModel):
     id: int
     email: EmailStr
@@ -117,7 +131,6 @@ class UserPublic(BaseModel):
     class Config:
         from_attributes = True
 
-# SignupRequest: 회원가입 요청 본문
 class SignupRequest(BaseModel):
     username: str = Field(..., min_length=2, max_length=50, description="사용자 닉네임 (프론트엔드 필드명)")
     email: EmailStr = Field(..., description="사용자 이메일 (로그인 ID)")
@@ -129,7 +142,7 @@ class SignupRequest(BaseModel):
         if v not in ['traveler', 'guide']:
             raise ValueError("user_type은 'traveler' 또는 'guide' 여야 합니다.")
         return v
-# --- ▲▲▲ [신규] 회원가입(Signup) 관련 스키마 완료 ▲▲▲ ---
+# --- 회원가입(Signup) 관련 스키마 완료 ---
 
 
 # ==================================================

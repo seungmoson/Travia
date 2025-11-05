@@ -60,6 +60,13 @@ class Content(Base):
     description = Column(Text, nullable=False)
     price = Column(Integer, nullable=False)
     location = Column(String(10), nullable=False) # 지역 코드 (예: SEO, ROM)
+
+    # --- ▼ [수정] 위도 및 경도 컬럼 추가 ▼ ---
+    # 지도 마커 표시에 사용. null을 허용합니다.
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
+    # --- ▲ [수정] ▲ ---
+
     status = Column(String(10), nullable=False) # 'Draft', 'Active', 'Archived'
     created_at = Column(DateTime, default=func.now(), nullable=False)
     
@@ -225,4 +232,3 @@ class ReviewTag(Base):
     # 관계 정의
     review = relationship("Review", back_populates="review_tags")
     tag = relationship("Tag", back_populates="review_tags")
-
