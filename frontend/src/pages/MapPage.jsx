@@ -1,37 +1,68 @@
-import React from 'react';
-// [수정] MapContainer.jsx의 경로를 '../components/MapContainer'로 수정
-import MapContainer from '../components/MapContainer'; // 지도 로직 컴포넌트
-// [추가] MapProvider를 import하여 MapContainer가 맵 객체를 받을 수 있도록 함
+import React, { useState, useCallback } from 'react'; 
+import MapContainer from '../components/MapContainer';
 import MapProvider from '../contexts/MapProvider';
+import MapSidebar from '../components/MapSidebar';
 
-/**
- * 지도 페이지 (MapContainer의 래퍼)
- * App.jsx로부터 navigateTo 함수를 받아서 MapContainer에 넘겨줍니다.
- * [수정] MapProvider로 MapContainer를 감싸고, "뒤로가기" 버튼을 추가합니다.
- */
 const MapPage = ({ navigateTo }) => {
-    return (
-        // MapProvider가 <div id="map" ...>을 렌더링합니다.
-        // 이 컴포넌트의 자식들(button, MapContainer)은 div#map 내부에 렌더링됩니다.
-        <MapProvider>
-            
-            {/* 지도 페이지 상단에 '뒤로가기' 또는 '홈' 버튼 */}
-            {/* MapProvider의 div#map이 position:relative 이므로, 
-                이 버튼은 z-10을 통해 지도 위에 표시됩니다. */}
-            <button
-                onClick={() => navigateTo('main')}
-                className="absolute top-4 left-4 z-10 bg-white px-4 py-2 rounded-full shadow-lg text-sm font-semibold hover:bg-gray-100 transition"
-            >
-                &larr; 메인으로 돌아가기
-            </button>
+  const [selectedContent, setSelectedContent] = useState(null); 
+  const [regionContentList, setRegionContentList] = useState([]);
 
-            {/* 실제 지도 로직 컴포넌트 (UI 렌더링은 하지 않고 훅만 실행)
-              MapProvider의 자식으로 렌더링되어야 useKakaoMap() 훅이 동작합니다.
-            */}
-            <MapContainer navigateTo={navigateTo} />
-            
+  // --- ▼▼▼ [수정] 사용감을 위해 이전 로직으로 되돌립니다 ▼▼▼ ---
+  // 마커나 목록 클릭 시, '페이지 이동'이 아니라 '사이드바 상세 뷰'를 엽니다.
+  const handleContentSelect = useCallback((content) => {
+    // [수정] navigateTo(...) 대신, state를 설정하여 사이드바 뷰를 변경
+    setSelectedContent(content); 
+    setRegionContentList([]); // 목록 뷰는 닫음
+  }, []); // 의존성 배열에서 navigateTo 제거
+  // --- ▲▲▲ [수정 완료] ▲▲▲ ---
+
+  // [유지] 이 함수는 MapContainer가 지역 데이터를 로드할 때 호출
+  const handleRegionDataLoaded = useCallback((dataList) => {
+    setRegionContentList(dataList);
+    setSelectedContent(null); 
+  }, []);
+
+  // [유지] 이 함수는 사이드바의 'X' 버튼 클릭 시 호출
+  const handleCloseSidebar = useCallback(() => {
+    setSelectedContent(null);
+    setRegionContentList([]);
+  }, []);
+
+  return (
+    // 사이드바 + 지도 레이아웃
+    <div className="flex h-screen w-screen overflow-hidden"> 
+      
+      {/* 사이드바 영역 (너비 350px 고정) */}
+      <div className="w-[350px] flex-shrink-0 bg-white shadow-lg z-20 overflow-y-auto"> 
+          <MapSidebar
+            content={selectedContent} // 👈 상세 뷰를 띄우기 위해 다시 사용
+            list={regionContentList}       
+            onClose={handleCloseSidebar}   
+            onItemClick={handleContentSelect} // 👈 수정된 함수 전달
+            navigateTo={navigateTo} // 👈 [신규] 상세 뷰의 "버튼"이 사용할 수 있도록 전달
+          />
+      </div>
+      
+      {/* 지도 영역 (남은 공간 모두 차지) */}
+      <div className="relative flex-grow"> 
+        <MapProvider>
+          {/* '뒤로가기' 버튼 */}
+          <button
+            onClick={() => navigateTo('main')}
+            className="absolute top-4 left-4 z-10 bg-white px-4 py-2 rounded-full shadow-lg text-sm font-semibold hover:bg-gray-100 transition"
+          >
+            &larr; 메인으로 돌아가기
+          </button>
+
+          <MapContainer 
+            navigateTo={navigateTo} 
+            onMarkerSelected={handleContentSelect} // 👈 마커 클릭 시에도 동일하게 전달됨
+            onRegionDataLoaded={handleRegionDataLoaded}
+          />
         </MapProvider>
-    );
+      </div>
+    </div>
+  );
 };
 
 export default MapPage;

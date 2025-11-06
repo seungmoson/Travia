@@ -29,7 +29,7 @@ class ContentListResponse(BaseModel):
         from_attributes = True
 
 
-# --- ▼ Tag 스키마 (Detail Page용) ▼ ---
+# --- Tag 스키마 (Detail Page용) ---
 class TagSchema(BaseModel):
     """
     Tag 모델을 위한 Pydantic 스키마
@@ -39,7 +39,6 @@ class TagSchema(BaseModel):
 
     class Config:
         from_attributes = True
-# --- ▲ ---
 
 
 # DetailPage의 'ReviewList' 컴포넌트용 스키마
@@ -85,24 +84,25 @@ class ContentDetailSchema(ContentListSchema):
     class Config:
         from_attributes = True
 
-# --- ▼ [수정] 지도 마커용 스키마 ▼ ---
+
+# --- ▼ [수정] 지도 마커 + 사이드바용 스키마 ▼ ---
 class MapContentSchema(BaseModel):
     """
-    지도 마커 표시에 필요한 최소한의 콘텐츠 정보 스키마
+    지도 마커 및 사이드바 표시에 필요한 콘텐츠 정보 스키마
     (GET /api/contents/map-data 응답용)
     """
     id: int = Field(..., description="콘텐츠 ID")
     title: str = Field(..., description="콘텐츠 제목")
-    
-    # --- ▼ [수정] 'location' 필드 추가 ▼ ---
-    # 이 필드가 누락되어 직렬화(Serialization) 과정에서 
-    # 다른 필드에도 영향을 준 것으로 보입니다.
-    # 또한, 프론트엔드에서 디버깅용으로 사용될 수 있습니다.
     location: str = Field(..., description="지역명 (예: 해운대구)")
-    # --- ▲ ---
-
     latitude: Optional[float] = Field(None, description="위도 (lat)")
     longitude: Optional[float] = Field(None, description="경도 (lng)")
+
+    # --- ▼ [추가] 사이드바 표시용 필드 (DetailView + RelatedContentCard) ▼ ---
+    main_image_url: Optional[str] = Field(None, description="메인 이미지 URL (사이드바 카드용)")
+    description: Optional[str] = Field(None, description="콘텐츠 설명 (사이드바 상세용)")
+    price: Optional[int] = Field(None, description="콘텐츠 가격 (사이드바용)")
+    rating: Optional[float] = Field(None, description="콘텐츠 평점 (RelatedContentCard가 사용)")
+    # --- ▲ ---
 
     class Config:
         from_attributes = True
@@ -110,7 +110,7 @@ class MapContentSchema(BaseModel):
 
 
 # ==================================================
-# 2. Auth 관련 스키마 (변경 없음)
+# 2. Auth 관련 스키마
 # ==================================================
 class LoginRequest(BaseModel):
     email: str = Field(..., description="사용자 이메일")
@@ -146,7 +146,7 @@ class SignupRequest(BaseModel):
 
 
 # ==================================================
-# 3. Booking 관련 스키마 (변경 없음)
+# 3. Booking 관련 스키마
 # ==================================================
 class BookingCreateRequest(BaseModel):
     content_id: int = Field(..., description="예약할 콘텐츠 ID")
@@ -190,7 +190,7 @@ class GuideBookingSchema(BaseModel):
     class Config: from_attributes = True
 
 # ==================================================
-# 4. Review 관련 스키마 (변경 없음)
+# 4. Review 관련 스키마
 # ==================================================
 class ReviewBase(BaseModel):
     rating: float = Field(..., ge=0.5, le=5.0, description="별점 (0.5 ~ 5.0 사이)")

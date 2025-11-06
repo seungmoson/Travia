@@ -1,8 +1,14 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { 
+    createContext, 
+    useState, 
+    useEffect, 
+    useContext,
+    useRef,
+    useCallback // [추가] useCallback
+} from 'react';
 
-// --- ▼ [Vite 오류 수정] ---
 const KAKAO_MAP_KEY = import.meta.env.VITE_KAKAO_MAP_KEY;
-// --- ▲ [Vite 오류 수정] ---
+const KAKAO_SCRIPT_ID = 'kakao-maps-sdk-script';
 
 // 1. Context 생성
 export const MapContext = createContext(null);
@@ -12,78 +18,120 @@ export const MapContext = createContext(null);
  */
 function MapProvider({ children }) {
     const [kakaoMap, setKakaoMap] = useState(null);
+    const mapContainerRef = useRef(null);
+    
+    // SDK 로딩 상태 관리
+    const sdkLoadingStatus = useRef({
+        isLoading: false,
+        isLoaded: false,
+    });
 
-    // -----------------------------------------------------------------
-    // 1. 카카오맵 스크립트 로드 및 지도 생성
-    // -----------------------------------------------------------------
+    // --- ▼ [오류 수정] ---
+    // loadMap 함수를 useEffect 밖으로 이동시키고 useCallback으로 감싸서
+    // ReferenceError를 해결하고, 의존성 배열에 안정적으로 전달합니다.
+    const loadMap = useCallback(() => {
+        if (!mapContainerRef.current) {
+            console.error("Map container ref is not available.");
+            return;
+        }
+
+        try {
+            const options = {
+                center: new window.kakao.maps.LatLng(35.1795543, 129.0756416), 
+                level: 11, 
+            };
+            const map = new window.kakao.maps.Map(mapContainerRef.current, options);
+            setKakaoMap(map); // state에 맵 객체 저장
+            console.log("MapProvider successfully created and set kakaoMap state.");
+        } catch (e) {
+            console.error("Failed to create Kakao Map object:", e);
+        }
+    }, []); // ref와 setter만 사용하므로 빈 배열
+    // --- ▲ [오류 수정] ---
+
+
     useEffect(() => {
         if (!KAKAO_MAP_KEY) {
-            console.error("Kakao Map API Key is not loaded. Check your .env file (VITE_KAKAO_MAP_KEY)");
+            console.error("Kakao Map API Key is not loaded.");
             return;
         }
 
-        // window.kakao 객체가 이미 존재하는지 확인
-        if (window.kakao && window.kakao.maps) {
-            console.log("Kakao Maps script already loaded.");
-            loadMap();
+        if (sdkLoadingStatus.current.isLoaded || sdkLoadingStatus.current.isLoading) {
+            console.log("SDK is already loaded or is currently loading.");
+            // [수정] 만약 이미 로드되었다면, loadMap을 다시 호출해줘야 맵이 생성됨
+            if (sdkLoadingStatus.current.isLoaded) {
+                 loadMap();
+            }
             return;
         }
 
-        const script = document.createElement('script');
-        script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_MAP_KEY}&autoload=false&libraries=services,clusterer,drawing`;
-        script.async = true; // 비동기 로드
-        document.head.appendChild(script);
+        let script = document.getElementById(KAKAO_SCRIPT_ID);
 
+        if (script) {
+            if (window.kakao && window.kakao.maps) {
+                console.log("SDK script tag found and window.kakao exists.");
+                sdkLoadingStatus.current.isLoaded = true;
+                loadMap(); // [수정] 이제 loadMap이 정의된 상태에서 호출됨
+                return;
+            }
+            console.log("SDK script tag found, but loading... attaching events.");
+        } else {
+            script = document.createElement('script');
+            script.id = KAKAO_SCRIPT_ID;
+            script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_MAP_KEY}&autoload=false&libraries=services,clusterer,drawing`;
+            script.async = true;
+            document.head.appendChild(script);
+            console.log("Appending new Kakao Maps script...");
+        }
+
+        sdkLoadingStatus.current.isLoading = true;
+        
         script.onload = () => {
             console.log("Kakao Maps script loaded successfully.");
             window.kakao.maps.load(() => {
-                loadMap(); // 스크립트 로드 완료 -> 지도 생성
+                console.log("Kakao Maps libraries initialized.");
+                sdkLoadingStatus.current.isLoading = false;
+                sdkLoadingStatus.current.isLoaded = true;
+                loadMap(); // [수정] 이제 loadMap이 정의된 상태에서 호출됨
             });
         };
 
         script.onerror = () => {
-             console.error("Failed to load Kakao Maps script.");
+            console.error("Failed to load Kakao Maps script.");
+            sdkLoadingStatus.current.isLoading = false;
         };
-    }, []); // [] : 컴포넌트가 처음 렌더링될 때 한 번만 실행
 
-    // 지도 생성 로직
-    const loadMap = () => {
-        const container = document.getElementById('map');
-        if (!container) {
-            console.error("Map container 'map' not found.");
-            return;
-        }
-        
-        const options = {
-             // 1. 중심좌표를 부산시청으로 변경
-            center: new window.kakao.maps.LatLng(35.1795543, 129.0756416), 
-            // 2. 맵 레벨을 부산이 잘 보이도록 11로 조정
-            level: 11, 
-        };
-        const map = new window.kakao.maps.Map(container, options);
-        setKakaoMap(map); // 생성된 지도 객체를 state에 저장
-        console.log("Kakao Map object created and set in state.");
-    };
+    }, [loadMap]); // [수정] 의존성 배열에 loadMap 추가
 
     return (
-        // 2. Context Provider로 kakaoMap 객체를 하위에 제공
-        //    value prop에 객체 형태로 { kakaoMap } 전달
         <MapContext.Provider value={{ kakaoMap }}>
-            {/* 3. 지도를 렌더링할 div (화면 전체 차지) */}
+            {/* [수정] 맵의 크기를 100vw/100vh -> 부모의 100%로 변경 */}
             <div 
-                id="map" 
+                ref={mapContainerRef} 
                 style={{ 
-                    width: '100vw', 
-                    height: '100vh', 
-                    position: 'relative' // 자식 요소(MapContainer)의 기준점
+                    width: '100%', 
+                    height: '100%', 
+                    position: 'relative'
                 }}
             >
-                {/* 4. kakaoMap이 성공적으로 생성된 *후에만* children을 렌더링
-                   (children이 바로 MapContainer가 됩니다) */}
                 {kakaoMap ? children : <div>Loading Map...</div>}
             </div>
         </MapContext.Provider>
     );
 }
+
+// --- ▼ [오류 수정] ---
+// 실수로 삭제되었던 useMap 훅을 다시 추가합니다.
+export function useMap() {
+  const context = useContext(MapContext);
+
+  if (!context) {
+    throw new Error("useMap must be used within a MapProvider.");
+  }
+  
+  // value={{ kakaoMap }}을 전달했으므로, context는 { kakaoMap } 객체
+  return context; 
+}
+// --- ▲ [오류 수정] ---
 
 export default MapProvider;

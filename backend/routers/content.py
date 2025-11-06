@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query  # 👈 [수정] APRouter -> APIRouter
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, or_, distinct
 from typing import List, Optional
@@ -10,7 +10,7 @@ from models import Content, GuideProfile, User, ContentImage, Booking, Review, T
 from schemas import (
     ContentListSchema, ContentDetailSchema, ReviewSchema, RelatedContentSchema,
     ContentListResponse,
-    MapContentSchema
+    MapContentSchema 
 )
 
 # 1. APIRouter 인스턴스 생성
@@ -121,22 +121,50 @@ def get_content_list(
     )
 
 
-# --- ▼ [수정] 지도 데이터용 엔드포인트 (area를 선택적으로 변경) ▼ ---
+# --- ▼ [수정] 지도 데이터용 엔드포인트 (평균 별점 계산 포함) ▼ ---
 @router.get("/map-data", response_model=List[MapContentSchema])
 def get_map_content_by_area(
-    # [수정] area를 필수(str)에서 선택(Optional[str])으로 변경
-    # [수정] 기본값을 Query(...)에서 Query(None, ...)로 변경
     area: Optional[str] = Query(None, description="GeoJSON의 'sggnm' (예: 해운대구). 생략 시 전체 반환"),
     db: Session = Depends(get_db)
 ):
     """
-    [지도 전용] 특정 지역(area) 또는 '전체' 콘텐츠 목록을 지도 마커용으로 반환합니다.
-    - area 쿼리 파라미터가 없으면, 위/경도 값이 있는 '모든' 콘텐츠를 반환합니다.
-    - area 쿼리 파라미터가 있으면, 해당 지역의 콘텐츠만 필터링합니다.
+    [지도 전용] 특정 지역(area) 또는 '전체' 콘텐츠 목록을 지도 마커 및 사이드바용으로 반환합니다.
+    - main_image_url, description, price 등 사이드바에 필요한 데이터를 포함합니다.
+    - [수정] N+1 문제를 피하면서 평균 별점(rating)을 계산합니다.
     """
     
-    # 1. 기본 쿼리: Active 상태이고, 위/경도 값이 있는 모든 콘텐츠
-    query = db.query(Content).filter(
+    # 1. 기본 쿼리: [수정] 평균 별점(avg_rating)을 계산하는 서브쿼리 JOIN
+    
+    # 1-1. [신규] 콘텐츠별 평균 별점을 계산하는 서브쿼리 생성
+    # (ContentDetail의 로직을 가져와서 서브쿼리 형태로 변경)
+    avg_rating_subquery = db.query(
+        Booking.content_id,
+        func.avg(Review.rating).label("avg_rating")
+    ).join(
+        Review, Booking.id == Review.booking_id
+    ).group_by(
+        Booking.content_id
+    ).subquery() # 👈 서브쿼리로 만듭니다.
+
+    # 1-2. 메인 쿼리 (Content)
+    query = db.query(
+        Content.id,
+        Content.title,
+        Content.location,
+        Content.latitude,
+        Content.longitude,
+        Content.description,
+        Content.price,
+        ContentImage.image_url.label("main_image_url"),
+        # [신규] 서브쿼리에서 계산된 avg_rating 값을 'rating' 컬럼으로 선택
+        avg_rating_subquery.c.avg_rating.label("rating") 
+    ).outerjoin(
+        # [신규] 메인 이미지 조인
+        ContentImage, (Content.id == ContentImage.contents_id) & (ContentImage.is_main == True)
+    ).outerjoin(
+        # [신규] 평균 별점 서브쿼리 조인
+        avg_rating_subquery, Content.id == avg_rating_subquery.c.content_id
+    ).filter(
         Content.status == "Active",
         Content.latitude.isnot(None),
         Content.longitude.isnot(None)
@@ -145,20 +173,40 @@ def get_map_content_by_area(
     # 2. area 파라미터가 '주어진 경우에만' 위치 필터링을 추가
     if area:
         query = query.filter(Content.location == area) 
-        # 예: Content.location == '해운대구'
     
     # 3. 쿼리 실행
-    contents = query.all()
+    results = query.all()
     
-    if not contents:
+    if not results:
         return []
     
-    # Pydantic이 쿼리 결과를 MapContentSchema 리스트로 자동 변환
-    return contents
+    # 4. [수정] 스키마 수동 변환
+    # 쿼리 결과(Row 객체 리스트)를 MapContentSchema 리스트로 변환
+    map_contents = []
+    for row in results:
+        try:
+            # [수정] row.rating (서브쿼리 결과)이 None일 경우 0.0으로 처리
+            calculated_rating = float(row.rating) if row.rating is not None else 0.0
+            
+            map_contents.append(MapContentSchema(
+                id=row.id,
+                title=row.title,
+                location=row.location,
+                latitude=row.latitude,
+                longitude=row.longitude,
+                main_image_url=row.main_image_url,
+                description=row.description,
+                price=row.price,
+                rating=calculated_rating # 👈 [수정] 계산된 별점 값을 할당
+            ))
+        except Exception as e:
+            print(f"Error converting map content ID {row.id} to schema: {e}")
+            
+    return map_contents
 # --- ▲ [수정 완료] ▲ ---
 
 
-# --- ▼ 인기 태그 목록 엔드포인트 ▼ ---
+# --- ▼ 인기 태그 목록 엔드포인트 (변경 없음) ▼ ---
 @router.get("/tags", response_model=List[str])
 def get_popular_tags(
     db: Session = Depends(get_db) 
@@ -183,7 +231,7 @@ def get_popular_tags(
 # --- ▲ 엔드포인트 완료 ▲ ---
 
 
-# 3. GET /{content_id} 상세 조회 엔드포인트 (DetailPage용)
+# 3. GET /{content_id} 상세 조회 엔드포인트 (DetailPage용, 변경 없음)
 @router.get("/{content_id}", response_model=ContentDetailSchema)
 def get_content_detail(
     content_id: int,
@@ -237,7 +285,7 @@ def get_content_detail(
     ).first()
 
     total_reviews_count = content_rating_stats.total_reviews_count if content_rating_stats else 0
-    avg_content_rating = round(float(content_rating_stats.avg_rating), 1) if content_rating_stats and content_rating_stats.avg_rating is not None else 4.0
+    avg_content_rating = round(float(content_rating_stats.avg_rating), 1) if content_rating_stats and content_rating_stats.avg_rating is not None else 0.0 # [수정] 4.0 -> 0.0
 
     # 5-2. 요청된 페이지의 리뷰 목록 쿼리
     review_results = db.query(Review).options(
@@ -298,11 +346,13 @@ def get_content_detail(
     related_contents_data = []
     for r in related_results:
         try:
+            # [수정] 관련 콘텐츠도 임시 평점 대신, 실제 평점을 계산해야 하지만
+            # N+1 문제가 심각하므로, 여기서는 0점으로 처리 (또는 임시 평점 유지)
             related_contents_data.append(RelatedContentSchema(
                 id=r.id,
                 title=r.title,
                 price=f"{r.price:,}" if r.price is not None else "문의",
-                rating=round(random.uniform(4.0, 5.0), 1), # 임시 평점
+                rating=0.0, # [수정] 임시 평점 -> 0.0
                 time="2시간 소요", # 임시 시간
                 imageUrl=r.imageUrl
             ))

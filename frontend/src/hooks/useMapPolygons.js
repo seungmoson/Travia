@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 
-// [신규] 폴리곤의 고정 색상 및 호버(hover) 색상을 정의합니다.
+// 폴리곤의 고정 색상 및 호버(hover) 색상을 정의합니다.
 const POLYGON_COLORS = {
     stroke: '#004c80', // 기본 테두리 색상 (진한 파란색)
     fill: '#007bff',   // 기본 채우기 색상 (파란색)
@@ -20,9 +20,6 @@ export const useMapPolygons = (kakaoMap, geoJsonData, onPolygonClick) => {
 
     // --- 헬퍼 함수들 (useCallback으로 최적화) ---
 
-    // [제거] getRandomColor 훅을 제거했습니다.
-    // const getRandomColor = useCallback(() => { ... });
-
     const convertCoordinates = useCallback((coords) => {
         // [경도, 위도] -> LatLng(위도, 경도)
         return coords.map(
@@ -33,48 +30,61 @@ export const useMapPolygons = (kakaoMap, geoJsonData, onPolygonClick) => {
     /** 폴리곤을 그리고, 생성된 폴리곤 객체를 반환 */
     const displayArea = useCallback((path, areaName) => {
         if (!kakaoMap) return null;
+        
+        // path가 유효하지 않으면 폴리곤을 생성하지 않고 null 반환
+        if (!path || path.length === 0) {
+            console.warn("displayArea: Invalid or empty path, skipping polygon creation.");
+            return null;
+        }
 
-        // [제거] const randomColor = getRandomColor();
-
-        // [수정] 고정 색상 (POLYGON_COLORS)을 사용합니다.
-        const polygon = new window.kakao.maps.Polygon({
-            map: kakaoMap,
-            path: path,
-            strokeWeight: 2,
-            strokeColor: POLYGON_COLORS.stroke,
-            strokeOpacity: 0.8,
-            fillColor: POLYGON_COLORS.fill,
-            fillOpacity: 0.4, // 채우기 투명도 살짝 조절
-        });
-
-        // [신규] 마우스 호버(mouseover) 이벤트 추가 (인터랙션 강조)
-        window.kakao.maps.event.addListener(polygon, 'mouseover', () => {
-            polygon.setOptions({
-                fillColor: POLYGON_COLORS.hoverFill,
-                fillOpacity: 0.6,
-                strokeColor: POLYGON_COLORS.hoverStroke,
-            });
-        });
-
-        // [신규] 마우스 아웃(mouseout) 이벤트 추가 (원래 색으로 복구)
-        window.kakao.maps.event.addListener(polygon, 'mouseout', () => {
-            polygon.setOptions({
-                fillColor: POLYGON_COLORS.fill,
-                fillOpacity: 0.4,
+        // 'a.addListener is not a function' 오류 방지
+        // polygon 생성이 실패할 경우(예: path가 잘못된 경우)를 대비해 try...catch로 감쌉니다.
+        try {
+            // 고정 색상 (POLYGON_COLORS)을 사용합니다.
+            const polygon = new window.kakao.maps.Polygon({
+                map: kakaoMap,
+                path: path,
+                strokeWeight: 2,
                 strokeColor: POLYGON_COLORS.stroke,
+                strokeOpacity: 0.8,
+                fillColor: POLYGON_COLORS.fill,
+                fillOpacity: 0.4, // 채우기 투명도 살짝 조절
             });
-        });
 
-        // [유지] 폴리곤 클릭 시 이벤트 발생
-        // (이 부분이 요청하신 "클릭 시 이벤트 발생" 기능입니다)
-        window.kakao.maps.event.addListener(polygon, 'click', () => {
-            if (onPolygonClick) {
-                onPolygonClick(areaName); // MapContainer로 areaName을 전달
-            }
-        });
+            // 마우스 호버(mouseover) 이벤트 추가
+            window.kakao.maps.event.addListener(polygon, 'mouseover', () => {
+                polygon.setOptions({
+                    fillColor: POLYGON_COLORS.hoverFill,
+                    fillOpacity: 0.6,
+                    strokeColor: POLYGON_COLORS.hoverStroke,
+                });
+            });
 
-        return polygon;
-    }, [kakaoMap, onPolygonClick]); // [수정] 의존성에서 getRandomColor 제거
+            // 마우스 아웃(mouseout) 이벤트 추가
+            window.kakao.maps.event.addListener(polygon, 'mouseout', () => {
+                polygon.setOptions({
+                    fillColor: POLYGON_COLORS.fill,
+                    fillOpacity: 0.4,
+                    strokeColor: POLYGON_COLORS.stroke,
+                });
+            });
+
+            // 폴리곤 클릭 시 이벤트 발생
+            window.kakao.maps.event.addListener(polygon, 'click', () => {
+                if (onPolygonClick) {
+                    onPolygonClick(areaName); // MapContainer로 areaName을 전달
+                }
+            });
+
+            return polygon; // 성공 시 폴리곤 객체 반환
+
+        } catch (e) {
+            // 폴리곤 생성 또는 리스너 추가 중 오류 발생 시
+            console.error("Failed to create polygon or add listeners:", e, { path, areaName });
+            return null; // 실패 시 null 반환
+        }
+
+    }, [kakaoMap, onPolygonClick]);
 
     /** GeoJSON 좌표로 폴리곤 객체(들)의 배열을 생성하여 반환 */
     const drawPolygon = useCallback((coordinates, geometryType, areaName) => {
@@ -84,12 +94,12 @@ export const useMapPolygons = (kakaoMap, geoJsonData, onPolygonClick) => {
         if (geometryType === 'Polygon') {
             polygonPath = convertCoordinates(coordinates[0]);
             const polygon = displayArea(polygonPath, areaName);
-            if (polygon) newPolygons.push(polygon);
+            if (polygon) newPolygons.push(polygon); // displayArea가 null을 반환할 수 있으므로 체크
         } else if (geometryType === 'MultiPolygon') {
             coordinates.forEach((polygonCoords) => {
                 polygonPath = convertCoordinates(polygonCoords[0]);
                 const polygon = displayArea(polygonPath, areaName);
-                if (polygon) newPolygons.push(polygon);
+                if (polygon) newPolygons.push(polygon); // displayArea가 null을 반환할 수 있으므로 체크
             });
         }
         return newPolygons;
@@ -97,7 +107,6 @@ export const useMapPolygons = (kakaoMap, geoJsonData, onPolygonClick) => {
 
 
     // --- 메인 로직: 지도 클릭 이벤트 핸들러 ---
-    // (기존 `MapContainer`의 5번 `useEffect` 로직)
     useEffect(() => {
         // kakaoMap과 geoJsonData가 모두 준비되었을 때만 실행
         if (!kakaoMap || !geoJsonData) return;
@@ -110,10 +119,8 @@ export const useMapPolygons = (kakaoMap, geoJsonData, onPolygonClick) => {
             geocoder.coord2RegionCode(latLng.getLng(), latLng.getLat(), (result, status) => {
                 if (status === window.kakao.maps.services.Status.OK) {
                     
-                    // Geocoder 결과에서 '시군구' 이름 (예: "해운대구")
                     const clickedAreaName = result[0].region_2depth_name; 
 
-                    // GeoJSON 데이터에서 일치하는 feature 찾기 (properties.sggnm 사용)
                     const foundFeature = geoJsonData.features.find(
                         f => f.properties.sggnm === clickedAreaName
                     );
@@ -151,5 +158,5 @@ export const useMapPolygons = (kakaoMap, geoJsonData, onPolygonClick) => {
             }
         };
 
-    }, [kakaoMap, geoJsonData, currentPolygons, drawPolygon]); // 의존성 배열
+    }, [kakaoMap, geoJsonData, currentPolygons, drawPolygon]);
 };
