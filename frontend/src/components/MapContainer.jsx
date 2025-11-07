@@ -37,7 +37,7 @@ function MapContainer({ navigateTo, onMarkerSelected, onRegionDataLoaded }) {
     // [수정] useMap()은 { kakaoMap } 객체를 반환하므로, 구조분해할당으로 받음
     const { kakaoMap: map } = useMap(); // MapProvider로부터 kakao 맵 객체를 받음
     
-    const geoJsonData = useGeoJsonData('korea.geojson');
+    const geoJsonData = useGeoJsonData('korea_ver3.geojson');
     const [contentData, setContentData] = useState([]);
 
     

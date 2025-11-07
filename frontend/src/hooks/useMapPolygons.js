@@ -119,10 +119,10 @@ export const useMapPolygons = (kakaoMap, geoJsonData, onPolygonClick) => {
             geocoder.coord2RegionCode(latLng.getLng(), latLng.getLat(), (result, status) => {
                 if (status === window.kakao.maps.services.Status.OK) {
                     
-                    const clickedAreaName = result[0].region_2depth_name; 
-
+                    // const clickedAreaName = result[0].region_2depth_name; ///justin
+                    const clickedAreaName = `${result[0].region_1depth_name} ${result[0].region_2depth_name}`;
                     const foundFeature = geoJsonData.features.find(
-                        f => f.properties.sggnm === clickedAreaName
+                        f => f.properties.sidonm_sggnm === clickedAreaName   
                     );
 
                     // 5. 이전에 표시된 폴리곤(들)이 있다면 지도에서 제거
@@ -132,7 +132,7 @@ export const useMapPolygons = (kakaoMap, geoJsonData, onPolygonClick) => {
 
                     if (foundFeature) {
                         // 6. 일치하는 feature로 새로운 폴리곤 그리기
-                        const areaName = foundFeature.properties.sggnm;
+                        const areaName = foundFeature.properties.sidonm_sggnm;
                         const coordinates = foundFeature.geometry.coordinates;
                         const geometryType = foundFeature.geometry.type;
 
