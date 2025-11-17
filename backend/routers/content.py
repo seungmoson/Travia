@@ -5,6 +5,10 @@ from typing import List, Optional
 from datetime import datetime
 import random
 
+# --- ▼ [추가] Elasticsearch 클라이언트 import ▼ ---
+from elasticsearch import Elasticsearch
+# --- ▲ [추가] ▲ ---
+
 from database import get_db
 from models import Content, GuideProfile, User, ContentImage, Booking, Review, Tag, ContentTag
 from schemas import (
@@ -12,6 +16,22 @@ from schemas import (
     ContentListResponse,
     MapContentSchema 
 )
+
+# --- ▼ [추가] Elasticsearch 클라이언트 인스턴스 생성 ▼ ---
+# (실제 프로덕션에서는 FastAPI의 Depends 등을 이용해 관리하는 것이 좋습니다)
+try:
+    es = Elasticsearch(
+        "http://localhost:9200",
+        # (필요시) 인증 정보 추가
+        # basic_auth=("elastic", "YOUR_PASSWORD") 
+    )
+    es.info() # 연결 테스트
+    print("Elasticsearch 클라이언트 연결 성공")
+except Exception as e:
+    print(f"Elasticsearch 연결 실패: {e}")
+    es = None # 연결 실패 시 es를 None으로 설정
+# --- ▲ [추가] ▲ ---
+
 
 # 1. APIRouter 인스턴스 생성
 router = APIRouter(
@@ -24,42 +44,108 @@ def get_content_list(
     db: Session = Depends(get_db),
     page: int = Query(1, ge=1, description="페이지 번호"),
     per_page: int = Query(9, ge=1, le=50, description="페이지당 콘텐츠 개수 (기본 9개)"),
-    search_terms: Optional[List[str]] = Query(None, alias="q", description="검색어 목록 (제목 또는 태그)")
+    search_terms: Optional[List[str]] = Query(None, alias="q", description="검색어 목록 (제목, 태그, 리뷰 포함)") # 설명 수정
 ):
     """
-    상태가 'Active'인 모든 콘텐츠의 목록을 페이지네이션하여 조회합니다.
-    검색어(q=)가 있으면 각 단어를 제목 또는 태그와 '부분 일치(OR)'하여 필터링합니다.
+    [수정됨]
+    - 검색어(q=)가 있으면 Elasticsearch에서 가중치(Boost) 검색을 수행합니다.
+    - 검색어가 없으면 DB에서 'Active' 콘텐츠의 목록을 페이지네이션하여 조회합니다.
     """
     
-    common_search_filter = None
+    # --- ▼ [수정] 1. 검색어가 있는 경우: Elasticsearch로 검색 ▼ ---
     if search_terms:
-        search_conditions = []
-        for term in search_terms:
-            if term.strip():
-                term_filter = f"%{term}%"
-                search_conditions.append(Content.title.ilike(term_filter))
-                search_conditions.append(Tag.name.ilike(term_filter))
-        
-        if search_conditions:
-            common_search_filter = or_(*search_conditions)
+        if es is None:
+            raise HTTPException(status_code=503, detail="검색 엔진(Elasticsearch)에 연결할 수 없습니다.")
 
+        # 1-1. 검색어 리스트를 하나의 공백 구분 문자열로 합침 (예: "부산 맛집")
+        query_string = " ".join(search_terms)
+
+        # 1-2. Elasticsearch 가중치(Boost) 쿼리
+        # title (nori 분석) : 3배
+        # all_tags (keyword) : 2배
+        # all_reviews_text (nori 분석): 1.5배 (신규 추가)
+        # description (nori 분석) : 1배 (기본 가중치)
+        es_query = {
+            "query": {
+                "bool": {
+                    "should": [
+                        { "match": { "title": { "query": query_string, "boost": 3 } } },
+                        { "terms": { "all_tags": search_terms, "boost": 2 } },
+                        
+                        # --- ▼ [추가된 로직] all_reviews_text 검색 ▼ ---
+                        { "match": { "all_reviews_text": { "query": query_string, "boost": 1.5 } } },
+                        # --- ▲ [추가된 로직] ▲ ---
+                        
+                        { "match": { "description": { "query": query_string, "boost": 1 } } }
+                    ],
+                    # 검색어가 title/tags/reviews/desc 중 하나라도 있어야 함
+                    "minimum_should_match": 1 
+                }
+            },
+            "from": (page - 1) * per_page, # 페이지네이션 시작 위치
+            "size": per_page              # 페이지당 개수
+        }
+
+        try:
+            # 1-3. Elasticsearch에 검색 요청
+            response = es.search(index="contents", body=es_query)
+
+        except Exception as e:
+            print(f"Elasticsearch search error: {e}")
+            raise HTTPException(status_code=500, detail="검색 엔진 오류가 발생했습니다.")
+
+        # 1-4. Elasticsearch 결과 처리
+        total_count = response['hits']['total']['value']
+        if total_count == 0:
+            return ContentListResponse(contents=[], total_count=0)
+
+        hits = response['hits']['hits']
+        content_list = []
+
+        # 1-5. ES 결과(_source)를 ContentListSchema로 변환
+        # (★_source에 guide_nickname, main_image_url, id 등이 이미 포함되어 있음)
+        for hit in hits:
+            source = hit['_source']
+            try:
+                # Logstash에서 guide_id를 포함했는지 확인하고, 없으면 None 처리
+                guide_id_from_es = source.get('guide_id') if 'guide_id' in source else (db.query(Content.guide_id).filter(Content.id == source.get('id')).scalar())
+
+                schema_instance = ContentListSchema(
+                    id=source.get('id'),
+                    title=source.get('title'),
+                    description=source.get('description', '설명 없음'),
+                    price=source.get('price', 0),
+                    location=source.get('location', '미정'),
+                    guide_nickname=source.get('guide_nickname', '정보 없음'), 
+                    main_image_url=source.get('main_image_url'), # None일 수도 있음
+                    guide_id=guide_id_from_es
+                )
+                content_list.append(schema_instance)
+            except Exception as e:
+                # Pydantic 유효성 검사 실패 등
+                print(f"Error converting ES doc ID {source.get('id')} to schema: {e}")
+
+        # 1-6. ES 검색 결과 반환
+        return ContentListResponse(
+            contents=content_list,
+            total_count=total_count
+        )
+    # --- ▲ [수정] Elasticsearch 검색 로직 완료 ▲ ---
     
-    # 1. 전체 개수 쿼리
+    
+    # --- ▼ [기존 로직] 2. 검색어가 없는 경우: DB에서 전체 목록 조회 ▼ ---
+    # (if search_terms: 가 False일 때 이 코드가 실행됩니다)
+    
+    print("검색어가 없어 DB에서 조회합니다.") # (디버깅용 로그)
+
+    # 2-1. 전체 개수 쿼리 (DB)
     total_count_query = db.query(func.count(distinct(Content.id))).filter(Content.status == "Active")
-
-    if common_search_filter is not None:
-        total_count_query = total_count_query.join(
-            ContentTag, Content.id == ContentTag.contents_id
-        ).join(
-            Tag, ContentTag.tag_id == Tag.id
-        ).filter(common_search_filter)
-    
     total_count = total_count_query.scalar() or 0
 
     if total_count == 0:
         return ContentListResponse(contents=[], total_count=0)
 
-    # 2. 실제 목록 쿼리
+    # 2-2. 실제 목록 쿼리 (DB)
     results_query = db.query(
         Content.id,
         Content.title,
@@ -80,13 +166,6 @@ def get_content_list(
         Content.status == "Active"
     )
 
-    if common_search_filter is not None:
-        results_query = results_query.join(
-            ContentTag, Content.id == ContentTag.contents_id
-        ).join(
-            Tag, ContentTag.tag_id == Tag.id
-        ).filter(common_search_filter)
-
     results = results_query.distinct().order_by(
         Content.created_at.desc()
     ).offset(
@@ -95,8 +174,7 @@ def get_content_list(
         per_page
     ).all()
 
-
-    # 3. 스키마 변환
+    # 2-3. 스키마 변환 (DB)
     content_list = []
     for row in results:
         try:
@@ -114,14 +192,16 @@ def get_content_list(
         except Exception as e:
             print(f"Error converting content ID {row.id} to schema: {e}")
 
-    # 4. 최종 응답 반환
+    # 2-4. DB 조회 결과 반환
     return ContentListResponse(
         contents=content_list,
         total_count=total_count
     )
+# --- ▲ [수정 완료] ▲ ---
 
 
 # --- ▼ [수정] 지도 데이터용 엔드포인트 (평균 별점 계산 포함) ▼ ---
+# (이하 코드는 변경 없음)
 @router.get("/map-data", response_model=List[MapContentSchema])
 def get_map_content_by_area(
     area: Optional[str] = Query(None, description="GeoJSON의 'sggnm' (예: 해운대구). 생략 시 전체 반환"),
