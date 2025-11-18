@@ -4,7 +4,7 @@ import React, {
     useEffect, 
     useContext,
     useRef,
-    useCallback // [추가] useCallback
+    useCallback //  useCallback
 } from 'react';
 
 const KAKAO_MAP_KEY = import.meta.env.VITE_KAKAO_MAP_KEY;
@@ -58,7 +58,7 @@ function MapProvider({ children }) {
 
         if (sdkLoadingStatus.current.isLoaded || sdkLoadingStatus.current.isLoading) {
             console.log("SDK is already loaded or is currently loading.");
-            // [수정] 만약 이미 로드되었다면, loadMap을 다시 호출해줘야 맵이 생성됨
+            //  만약 이미 로드되었다면, loadMap을 다시 호출해줘야 맵이 생성됨
             if (sdkLoadingStatus.current.isLoaded) {
                  loadMap();
             }
@@ -71,7 +71,7 @@ function MapProvider({ children }) {
             if (window.kakao && window.kakao.maps) {
                 console.log("SDK script tag found and window.kakao exists.");
                 sdkLoadingStatus.current.isLoaded = true;
-                loadMap(); // [수정] 이제 loadMap이 정의된 상태에서 호출됨
+                loadMap(); //  이제 loadMap이 정의된 상태에서 호출됨
                 return;
             }
             console.log("SDK script tag found, but loading... attaching events.");
@@ -92,7 +92,7 @@ function MapProvider({ children }) {
                 console.log("Kakao Maps libraries initialized.");
                 sdkLoadingStatus.current.isLoading = false;
                 sdkLoadingStatus.current.isLoaded = true;
-                loadMap(); // [수정] 이제 loadMap이 정의된 상태에서 호출됨
+                loadMap(); //  이제 loadMap이 정의된 상태에서 호출됨
             });
         };
 
@@ -101,11 +101,11 @@ function MapProvider({ children }) {
             sdkLoadingStatus.current.isLoading = false;
         };
 
-    }, [loadMap]); // [수정] 의존성 배열에 loadMap 추가
+    }, [loadMap]); //  의존성 배열에 loadMap 추가
 
     return (
         <MapContext.Provider value={{ kakaoMap }}>
-            {/* [수정] 맵의 크기를 100vw/100vh -> 부모의 100%로 변경 */}
+            {/*  맵의 크기를 100vw/100vh -> 부모의 100%로 변경 */}
             <div 
                 ref={mapContainerRef} 
                 style={{ 
