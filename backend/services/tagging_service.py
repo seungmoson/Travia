@@ -12,10 +12,10 @@ def fetch_reviews_without_tags(db: Session) -> list[Review]:
     ).filter(
         ReviewTag.id == None # IS NULL
     ).options(
-        # --- ▼ [핵심 수정] N+1 방지를 위해 Eager Loading ▼ ---
+        # --- ▼  N+1 방지를 위해 Eager Loading ▼ ---
         # Review -> Booking -> Content 관계를 미리 로드
         joinedload(Review.booking).joinedload(Booking.content)
-        # --- ▲ [수정 완료] ▲ ---
+        
     ).all()
     
     return reviews_to_tag

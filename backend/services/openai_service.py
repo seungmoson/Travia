@@ -11,7 +11,7 @@ except TypeError:
     print("❗️ OPENAI_API_KEY가 설정되지 않았습니다. .env 파일을 확인해주세요.")
     client = None
 
-# --- ▼ [수정됨] 1. 함수 시그니처 변경 ▼ ---
+# --- ▼  1. 함수 시그니처 변경 ▼ ---
 def extract_tags_from_text(review_text: str, content_title: str) -> list:
     """
     주어진 리뷰 텍스트와 **컨텐츠 제목**에서 AI를 사용하여 관련 태그를 추출합니다.
@@ -19,9 +19,9 @@ def extract_tags_from_text(review_text: str, content_title: str) -> list:
     # 리뷰 텍스트가 없으면 태그 추출 불가
     if not client or not review_text:
         return []
-# --- ▲ [수정 완료] ▲ ---
 
-    # --- [수정됨] 프롬프트 강화 (컨텐츠 제목 컨텍스트 추가) ---
+
+    # ---  프롬프트 강화 (컨텐츠 제목 컨텍스트 추가) ---
     system_prompt = """
     당신은 국내 여행 후기에서 검색과 분류에 가장 유용한 핵심 명사 태그만을 추출하는 정제 전문가입니다.
 
@@ -50,7 +50,7 @@ def extract_tags_from_text(review_text: str, content_title: str) -> list:
     예시 출력: (만약 태그가 없다면 그냥 빈칸)
     """
     
-    # --- ▼ [수정됨] 2. User 메시지 포맷 변경 ▼ ---
+    # --- ▼  2. User 메시지 포맷 변경 ▼ ---
     # AI에게 두 정보를 명확히 구분하여 전달
     user_content = f"""
     [컨텐츠 제목]
@@ -59,23 +59,23 @@ def extract_tags_from_text(review_text: str, content_title: str) -> list:
     [여행자 리뷰]
     {review_text}
     """
-    # --- ▲ [수정 완료] ▲ ---
+    
     
     try:
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": system_prompt},
-                # --- ▼ [수정됨] 3. 수정된 user_content 사용 ▼ ---
+                # --- ▼  3. 수정된 user_content 사용 ▼ ---
                 {"role": "user", "content": user_content}
-                # --- ▲ [수정 완료] ▲ ---
+                
             ],
             temperature=0.2,
             max_tokens=50
         )
         content = response.choices[0].message.content
         
-        # --- [유지] 4. 후처리 로직 (기존과 동일) ---
+        # --- 4. 후처리 로직 (기존과 동일) ---
         content = content.replace("(", "").replace(")", "").replace("'", "").replace('"', "").replace(':', "")
         
         tags_from_ai = [tag.strip() for tag in content.split(',') if tag.strip()]
