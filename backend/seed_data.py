@@ -102,7 +102,7 @@ def create_seed_data(db: Session):
                 price=random.randint(3, 10) * 10000,
                 location=content_data["location"],
                 
-                # --- ▼ [핵심] 위도/경도 데이터 읽기 로직 추가 ▼ ---
+                # --- ▼  위도/경도 데이터 읽기 로직 추가 ▼ ---
                 latitude=content_data.get("latitude"),
                 longitude=content_data.get("longitude"),
                 # --- ▲ ---

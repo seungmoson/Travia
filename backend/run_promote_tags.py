@@ -4,7 +4,7 @@ import sys
 import os
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
-# --- [수정됨] 1. 'not_', 'func.length' 필터를 위해 추가 ---
+# ---  1. 'not_', 'func.length' 필터를 위해 추가 ---
 from sqlalchemy import func, desc, not_
 
 # 1. 환경 변수 및 경로 설정 (run_ai_tagging.py와 동일)
@@ -18,7 +18,7 @@ from models import ReviewTag, Tag, ContentTag, Review, Booking, Content
 # 3. 각 상품(Content)별로 승격시킬 상위 태그 개수
 TOP_N_TAGS = 5 
 
-# --- [신규 추가] 4. 승격에서 제외할 '쓰레기 태그' 목록 ---
+# ---  4. 승격에서 제외할 '쓰레기 태그' 목록 ---
 # (SQL의 LIKE 연산자를 사용하기 위해 % 와일드카드 사용)
 GARBAGE_SUBSTRINGS_FOR_SQL = [
     '%반환%', '%추출%', '%없음%', '%키워드%', '%해당%', '%태그%', 
@@ -27,7 +27,6 @@ GARBAGE_SUBSTRINGS_FOR_SQL = [
 ]
 # 승격시킬 최대 태그 글자 수 (이보다 길면 문장으로 간주)
 MAX_TAG_LENGTH = 15
-# -----------------------------------------------
 
 def main():
     """
@@ -49,7 +48,7 @@ def main():
         # 3. 'review_tags' -> ... -> 'contents'를 JOIN하여 집계
         print(f"--- 3. Aggregating new AI tags from 'review_tags' (filtering garbage/long tags)...")
         
-        # --- [수정됨] 3-1. 쓰레기 태그 + '긴 문장' 필터 조건 생성 ---
+        # ---  3-1. 쓰레기 태그 + '긴 문장' 필터 조건 생성 ---
         filters = [ReviewTag.is_ai_extracted == True] # 기본 필터
         
         # 쓰레기 단어 포함 필터
@@ -58,7 +57,6 @@ def main():
             
         # 문장 길이 필터 (예: 15자 초과 시 제외)
         filters.append(func.length(Tag.name) < MAX_TAG_LENGTH)
-        # -----------------------------------------------
 
         aggregated_tags = db.query(
             Content.id.label('content_id'),
@@ -74,7 +72,7 @@ def main():
         ).join(
             Tag, ReviewTag.tag_id == Tag.id
         ).filter(
-            *filters # [수정됨] 강화된 필터 리스트 적용
+            *filters #  강화된 필터 리스트 적용
         ).group_by(
             Content.id, Tag.id, Tag.name
         ).order_by(

@@ -33,7 +33,7 @@ def main():
         for i, review in enumerate(reviews):
             print(f"\n--- Processing review #{review.id} ({i+1}/{len(reviews)}) ---")
             
-            # --- ▼ [핵심 수정] 컨텐츠 제목 가져오기 ▼ ---
+            # --- ▼  컨텐츠 제목 가져오기 ▼ ---
             review_text = review.text
             
             content_title = "" # 기본값
@@ -46,12 +46,9 @@ def main():
                 # 컨텐츠 정보가 없는 리뷰(예: 탈퇴한 가이드)도 태그 추출은 시도
                 print(f"   Review Text: {review_text[:50]}...")
                 print(f"   ⚠️ Warning: Could not find Content Title for this review.")
-            # --- ▲ [수정 완료] ▲ ---
-
-            # --- ▼ [핵심 수정] AI 호출 시 두 인자 전달 ▼ ---
+            # --- ▼  AI 호출 시 두 인자 전달 ▼ ---
             tags = extract_tags_from_text(review_text, content_title)
-            # --- ▲ [수정 완료] ▲ ---
-            
+
             if tags:
                 print(f"   ✨ Extracted Tags: {', '.join(tags)}")
                 # DB에 태그 저장
@@ -59,13 +56,12 @@ def main():
                 print(f"   💾 Tags queued for saving.")
             else:
                 print("   ⚠️ No tags extracted for this review.")
-                # --- ▼ [중요] '태그 없음'도 저장하여 중복 처리 방지 ▼ ---
+                # --- ▼  '태그 없음'도 저장하여 중복 처리 방지 ▼ ---
                 # (이 태그는 run_promote_tags.py의 GARBAGE_SUBSTRINGS_FOR_SQL에 추가해야 함)
                 special_tag = ["AI_PROCESSED_NO_TAGS"]
                 save_tags_for_review(db, review.id, special_tag)
                 print(f"   💾 Saved a 'no-tag' marker to prevent re-processing.")
-                # --- ▲ [수정 완료] ▲ ---
-
+                
         # 4. 모든 작업 완료 후 일괄 커밋
         print("\n--- Committing all changes to the database ---")
         db.commit()

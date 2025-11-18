@@ -6,10 +6,7 @@ from database import Base # database.py에서 정의한 Base 임포트
 # 모든 테이블의 __table_args__에 스키마 이름을 명시하여 사용합니다.
 SCHEMA_NAME = 'travel_project'
 
-# ==================================================
 # 1. User & Profile
-# ==================================================
-
 class User(Base):
     __tablename__ = "users"
     __table_args__ = {'schema': SCHEMA_NAME}
@@ -45,11 +42,7 @@ class GuideProfile(Base):
     guide_reviews = relationship("GuideReview", back_populates="guide")
     traveler_reviews_as_guide = relationship("TravelerReview", back_populates="guide_reviewer")
 
-
-# ==================================================
 # 2. Content (투어 상품)
-# ==================================================
-
 class Content(Base):
     __tablename__ = "contents"
     __table_args__ = {'schema': SCHEMA_NAME}
@@ -61,12 +54,11 @@ class Content(Base):
     price = Column(Integer, nullable=False)
     location = Column(String(10), nullable=False) # 지역 코드 (예: SEO, ROM)
 
-    # --- ▼ [수정] 위도 및 경도 컬럼 추가 ▼ ---
+    # --- ▼  위도 및 경도 컬럼 추가 ▼ ---
     # 지도 마커 표시에 사용. null을 허용합니다.
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)
-    # --- ▲ [수정] ▲ ---
-
+    
     status = Column(String(10), nullable=False) # 'Draft', 'Active', 'Archived'
     created_at = Column(DateTime, default=func.now(), nullable=False)
     
@@ -101,11 +93,7 @@ class ContentVideo(Base):
     
     content = relationship("Content", back_populates="videos")
 
-
-# ==================================================
 # 3. Booking & Review
-# ==================================================
-
 class Booking(Base):
     __tablename__ = "bookings"
     __table_args__ = {'schema': SCHEMA_NAME}
@@ -115,9 +103,8 @@ class Booking(Base):
     content_id = Column(Integer, ForeignKey(f'{SCHEMA_NAME}.contents.id', ondelete="RESTRICT", onupdate="CASCADE"), nullable=False)
     booking_date = Column(DateTime, nullable=False)
     
-    # --- 👇 [수정] 인원수 컬럼 추가 ---
+    # --- 👇  인원수 컬럼 추가 ---
     personnel = Column(Integer, nullable=False, default=1)
-    # --- ▲ 수정 완료 ▲ ---
     
     status = Column(String(20), nullable=False) # 'Pending', 'Confirmed', 'Completed', 'Canceled'
     created_at = Column(DateTime, default=func.now(), nullable=False)
@@ -128,7 +115,6 @@ class Booking(Base):
     review = relationship("Review", back_populates="booking", uselist=False)
     guide_review = relationship("GuideReview", back_populates="booking", uselist=False)
     traveler_review = relationship("TravelerReview", back_populates="booking", uselist=False)
-
 
 class Review(Base):
     __tablename__ = "reviews"
@@ -145,7 +131,6 @@ class Review(Base):
     booking = relationship("Booking", back_populates="review")
     reviewer = relationship("User", back_populates="reviews_as_reviewer")
     review_tags = relationship("ReviewTag", back_populates="review", cascade="all, delete-orphan")
-
 
 class GuideReview(Base):
     __tablename__ = "guide_reviews"
@@ -164,7 +149,6 @@ class GuideReview(Base):
     guide = relationship("GuideProfile", back_populates="guide_reviews")
     reviewer = relationship("User", foreign_keys=[reviewer_id]) # 충돌 방지를 위해 foreign_keys 지정
 
-
 class TravelerReview(Base):
     __tablename__ = "traveler_reviews"
     __table_args__ = {'schema': SCHEMA_NAME}
@@ -182,11 +166,7 @@ class TravelerReview(Base):
     guide_reviewer = relationship("GuideProfile", back_populates="traveler_reviews_as_guide")
     traveler = relationship("User", back_populates="traveler_reviews_as_traveler")
 
-
-# ==================================================
 # 4. Tagging
-# ==================================================
-
 class Tag(Base):
     __tablename__ = "tags"
     __table_args__ = {'schema': SCHEMA_NAME}
@@ -198,7 +178,6 @@ class Tag(Base):
     # 관계 정의
     content_tags = relationship("ContentTag", back_populates="tag")
     review_tags = relationship("ReviewTag", back_populates="tag")
-
 
 class ContentTag(Base):
     __tablename__ = "content_tags"

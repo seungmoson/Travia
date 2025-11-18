@@ -2,10 +2,7 @@ from pydantic import BaseModel, Field, EmailStr, field_validator
 from typing import List, Optional
 from datetime import datetime
 
-# ==================================================
 # 1. Content 관련 스키마
-# ==================================================
-
 # Content 목록 조회 시 응답 스키마 (MainPage용)
 class ContentListSchema(BaseModel):
     id: int = Field(..., description="콘텐츠 고유 ID")
@@ -85,7 +82,7 @@ class ContentDetailSchema(ContentListSchema):
         from_attributes = True
 
 
-# --- ▼ [수정] 지도 마커 + 사이드바용 스키마 ▼ ---
+# --- ▼ 지도 마커 + 사이드바용 스키마 ▼ ---
 class MapContentSchema(BaseModel):
     """
     지도 마커 및 사이드바 표시에 필요한 콘텐츠 정보 스키마
@@ -97,21 +94,19 @@ class MapContentSchema(BaseModel):
     latitude: Optional[float] = Field(None, description="위도 (lat)")
     longitude: Optional[float] = Field(None, description="경도 (lng)")
 
-    # --- ▼ [추가] 사이드바 표시용 필드 (DetailView + RelatedContentCard) ▼ ---
+    # --- ▼ 사이드바 표시용 필드 (DetailView + RelatedContentCard) ▼ ---
     main_image_url: Optional[str] = Field(None, description="메인 이미지 URL (사이드바 카드용)")
     description: Optional[str] = Field(None, description="콘텐츠 설명 (사이드바 상세용)")
     price: Optional[int] = Field(None, description="콘텐츠 가격 (사이드바용)")
     rating: Optional[float] = Field(None, description="콘텐츠 평점 (RelatedContentCard가 사용)")
-    # --- ▲ ---
 
     class Config:
         from_attributes = True
-# --- ▲ [수정 완료] ▲ ---
 
 
-# ==================================================
+
+
 # 2. Auth 관련 스키마
-# ==================================================
 class LoginRequest(BaseModel):
     email: str = Field(..., description="사용자 이메일")
     password: str = Field(..., description="사용자 비밀번호")
@@ -119,7 +114,6 @@ class LoginRequest(BaseModel):
 class LoginResponse(BaseModel):
     access_token: str = Field(..., description="JWT 액세스 토큰")
     token_type: str = Field("bearer", description="토큰 타입 (고정값 'bearer')")
-
 
 # --- 회원가입(Signup) 관련 스키마 ---
 class UserPublic(BaseModel):
@@ -142,12 +136,8 @@ class SignupRequest(BaseModel):
         if v not in ['traveler', 'guide']:
             raise ValueError("user_type은 'traveler' 또는 'guide' 여야 합니다.")
         return v
-# --- 회원가입(Signup) 관련 스키마 완료 ---
 
-
-# ==================================================
 # 3. Booking 관련 스키마
-# ==================================================
 class BookingCreateRequest(BaseModel):
     content_id: int = Field(..., description="예약할 콘텐츠 ID")
     booking_date: datetime = Field(..., description="예약 날짜 및 시간")
@@ -189,9 +179,7 @@ class GuideBookingSchema(BaseModel):
     traveler: UserInfoSchema = Field(..., description="예약 고객 정보")
     class Config: from_attributes = True
 
-# ==================================================
 # 4. Review 관련 스키마
-# ==================================================
 class ReviewBase(BaseModel):
     rating: float = Field(..., ge=0.5, le=5.0, description="별점 (0.5 ~ 5.0 사이)")
     comment: str = Field(..., description="리뷰 코멘트") 

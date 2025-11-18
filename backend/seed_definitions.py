@@ -1,6 +1,6 @@
 # app/seed_definitions.py
-# [수정됨] location 필드를 GeoJSON의 'sggnm'과 일치하는 한글로 변경
-# [수정됨] SEED_CONTENTS_DATA에서 "tags" 필드 모두 제거
+#  location 필드를 GeoJSON의 'sggnm'과 일치하는 한글로 변경
+#  SEED_CONTENTS_DATA에서 "tags" 필드 모두 제거
 
 # --- 1. 이미지 S3 URL 맵 ---
 IMAGE_MAP = {
