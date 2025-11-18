@@ -6,7 +6,7 @@ from passlib.context import CryptContext
 
 from database import get_db
 from models import User
-# [수정] LoginResponse 외 SignupRequest, UserPublic 스키마 import
+#  LoginResponse 외 SignupRequest, UserPublic 스키마 import
 from schemas import LoginRequest, LoginResponse, SignupRequest, UserPublic
 
 # --- ▼ [JWT 설정] ▼ ---
@@ -15,11 +15,8 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30 
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-# --- ▲ JWT 설정 끝 ▲ ---
-
 
 # --- ▼ [유틸리티 함수] ▼ ---
-
 # 비밀번호 검증 함수
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
@@ -38,16 +35,16 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
-# --- ▲ 유틸리티 함수 끝 ▲ ---
+
 
 
 # 1. APIRouter 인스턴스 생성
 router = APIRouter(
-    prefix="/auth", # [권장] /auth 접두사 추가
-    tags=["Auth"]   # [권장] API 문서 태그
+    prefix="/auth", #  /auth 접두사 추가
+    tags=["Auth"]   #  API 문서 태그
 )
 
-# --- ▼▼▼ [신규] POST /signup 엔드포인트 ▼▼▼ ---
+# --- ▼  POST /signup 엔드포인트 ▼ ---
 @router.post("/signup", response_model=UserPublic, status_code=status.HTTP_201_CREATED)
 def create_user(request: SignupRequest, db: Session = Depends(get_db)):
     """
@@ -68,7 +65,7 @@ def create_user(request: SignupRequest, db: Session = Depends(get_db)):
     hashed_password = get_password_hash(request.password)
     
     # 3. 새 User 객체 생성
-    #    [수정] nickname 필드에 request.username 값을 할당
+    #     nickname 필드에 request.username 값을 할당
     new_user = User(
         email=request.email,
         password=hashed_password,
@@ -91,8 +88,6 @@ def create_user(request: SignupRequest, db: Session = Depends(get_db)):
     
     # 5. 생성된 사용자 정보 반환 (UserPublic 스키마 사용, 비밀번호 제외)
     return new_user
-# --- ▲▲▲ [신규] /signup 엔드포인트 완료 ▲▲▲ ---
-
 
 # 2. POST /login 엔드포인트 정의
 @router.post("/login", response_model=LoginResponse) 
@@ -111,16 +106,13 @@ def login_user(request: LoginRequest, db: Session = Depends(get_db)):
             headers={"WWW-Authenticate": "Bearer"}, 
         )
 
-    # 3. [수정] 인증 성공 시 JWT 토큰 생성
-    
-    # ▼▼▼▼▼ [ 여기가 핵심 수정 사항 ] ▼▼▼▼▼
+    # 3.  인증 성공 시 JWT 토큰 생성
     # 토큰에 프론트엔드가 필요한 nickname과 user_type을 포함시킵니다.
     access_token_data = {
         "sub": str(user.id),
         "nickname": user.nickname,    # (User.nickname 필드)
         "user_type": user.user_type   # (User.user_type 필드)
     }
-    # ▲▲▲▲▲ [ 핵심 수정 완료 ] ▲▲▲▲▲
     
     # 4. 설정된 유효 시간으로 토큰 생성
     access_token = create_access_token(
@@ -136,7 +128,7 @@ def login_user(request: LoginRequest, db: Session = Depends(get_db)):
 # (이 함수는 예약 API 등 로그인 필요한 엔드포인트에서 사용)
 from fastapi.security import OAuth2PasswordBearer
 
-# [수정] tokenUrl은 /auth/login (라우터 prefix 포함)
+#  tokenUrl은 /auth/login (라우터 prefix 포함)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login") 
 
 async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
@@ -151,7 +143,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
         if user_id is None:
             raise credentials_exception
             
-        # [참고] 토큰에서 다른 정보도 추출 가능 (필요한 경우)
+        #  토큰에서 다른 정보도 추출 가능 (필요한 경우)
         # nickname: str = payload.get("nickname")
         # user_type: str = payload.get("user_type")
             
@@ -162,4 +154,4 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     if user is None:
         raise credentials_exception
     return user # 현재 로그인된 User 모델 객체 반환
-# --- ▲ 의존성 함수 끝 ▲ ---
+

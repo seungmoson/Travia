@@ -1,17 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
-# --- ▼ [신규 추가] 평균 계산을 위한 func 임포트 ▼ ---
+# --- ▼  평균 계산을 위한 func 임포트 ▼ ---
 from sqlalchemy import func
-# --- ▲ [신규 추가 완료] ▲ ---
 from typing import List
-
-# [수정] auth.py와 동일한 절대 경로 방식으로 변경
+#  auth.py와 동일한 절대 경로 방식으로 변경
 from database import get_db 
 import models      
 import schemas     
-# [수정] auth.py는 review.py와 같은 routers 폴더에 있으므로 상대 경로(.)로 import
+#  auth.py는 review.py와 같은 routers 폴더에 있으므로 상대 경로(.)로 import
 from .auth import get_current_user 
-
 
 # 라우터 설정
 router = APIRouter(
@@ -19,9 +16,7 @@ router = APIRouter(
     tags=["Reviews"],   # FastAPI Docs 태그
 )
 
-# ================================================================
 # 1. 상품(Content) 리뷰 작성 API
-# ================================================================
 @router.post(
     "/content", 
     response_model=schemas.ContentReviewResponse,
@@ -89,24 +84,21 @@ def create_content_review(
         db.commit()
         db.refresh(new_review)
         
-        # --- ▼ [신규 추가] 상품(Content) 평점 업데이트 로직 ▼ ---
+        # --- ▼  상품(Content) 평점 업데이트 로직 ▼ ---
         # (Content 평점은 ContentDetail에서 계산하므로 여기서는 생략, 필요시 추가)
-        # --- ▲ [신규 추가 완료] ▲ ---
+        
         
         return new_review
     except Exception as e:
         db.rollback()
-        # [개선] 에러 로그 추가
+        #  에러 로그 추가
         print(f"Error creating content review: {e}") 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An error occurred while creating the review: {e}"
         )
 
-
-# ================================================================
 # 2. 가이드(Guide) 리뷰 작성 API
-# ================================================================
 @router.post(
     "/guide", 
     response_model=schemas.GuideReviewResponse,
@@ -186,8 +178,7 @@ def create_guide_review(
         db.commit()
         db.refresh(new_guide_review)
         
-        # --- ▼ [신규 추가] 가이드 평균 평점 업데이트 로직 ▼ ---
-        
+        # --- ▼  가이드 평균 평점 업데이트 로직 ▼ ---
         # 8-1. 해당 가이드의 모든 리뷰 평점 평균 계산
         #      func.avg는 결과가 Decimal일 수 있으므로 float으로 변환
         avg_rating_result = db.query(
@@ -210,17 +201,13 @@ def create_guide_review(
         else:
             # 혹시 모를 에러 상황 로깅 (리뷰는 있는데 프로필이 없는 경우)
             print(f"Warning: GuideProfile not found for guide_id {target_guide_id} while updating avg_rating.")
-
-        # --- ▲ [신규 추가 완료] ▲ ---
-        
         return new_guide_review # 생성된 리뷰 객체 반환
         
     except Exception as e:
         db.rollback()
-        # [개선] 에러 로그 추가
+        #  에러 로그 추가
         print(f"Error creating guide review or updating guide avg_rating: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An error occurred while creating the review: {e}"
         )
-
