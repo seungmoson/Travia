@@ -24,7 +24,7 @@ const AuthModal = ({ show, onClose, onLogin, onSignup }) => {
         >
             <div className="bg-white rounded-3xl shadow-2xl w-80 p-6 text-center transform transition-all animate-scaleIn">
                 {/* 로고 */}
-                {/* [수정] w-16 -> w-32로 로고 크기 변경 */}
+                {/*  w-16 -> w-32로 로고 크기 변경 */}
                 <img src="/image3.png" alt="Travia Logo" className="w-32 mx-auto mb-3" />
                 <h2 className="text-lg font-semibold text-gray-900 mb-1">
                     Travia에 오신 것을 환영합니다

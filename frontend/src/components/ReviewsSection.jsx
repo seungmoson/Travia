@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-// --- ▼ [수정] import 경로에서 .jsx 확장자 제거 ▼ ---
 import ReviewList from './ReviewList'; // ReviewList 컴포넌트 import
-// --- ▲ [수정 완료] ▲ ---
 import { ThreeDots } from 'react-loader-spinner'; // 로딩 스피너 import
 
 const API_BASE_URL = 'http://localhost:8000';
@@ -86,7 +84,6 @@ const ReviewsSection = ({ contentId, initialReviews, totalReviews }) => {
             if (currentObserverRef) observer.unobserve(currentObserverRef);
         };
     }, [loadMoreReviews, loadingMore, hasMoreReviews]); // loading 제거
-
 
     // --- 렌더링 ---
     return (

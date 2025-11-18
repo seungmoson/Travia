@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 // 아이콘 경로는 실제 프로젝트 구조에 맞게 수정하세요.
 // import { MinusIcon, PlusIcon } from '../assets/Icons'; 
 
-// [임시] 아이콘 컴포넌트
+// 아이콘 컴포넌트
 const MinusIcon = ({ className }) => <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" /></svg>;
 const PlusIcon = ({ className }) => <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>;
 
@@ -17,10 +17,8 @@ const getTodayDateString = () => {
     return `${year}-${month}-${day}`;
 };
 
-/**
- * BookingBox 컴포넌트
- */
- // --- ▼ [수정] setShowAuthModal prop 추가 ▼ ---
+//BookingBox 컴포넌트
+ // --- ▼  setShowAuthModal prop 추가 ▼ ---
 const BookingBox = ({ contentId, navigateTo, user, contentAuthorId = null, setShowAuthModal }) => {
     const todayString = getTodayDateString();
 
@@ -42,8 +40,6 @@ const BookingBox = ({ contentId, navigateTo, user, contentAuthorId = null, setSh
         userType: typeof user?.id, 
         authorType: typeof contentAuthorId 
     });
-    // --- [디버깅 로그 끝] ---
-
 
     // isOwner 계산 로직
     const isOwner = user.isLoggedIn && 
@@ -51,11 +47,8 @@ const BookingBox = ({ contentId, navigateTo, user, contentAuthorId = null, setSh
                     user.id !== null && 
                     String(user.id) === String(contentAuthorId);
 
-    // ▼▼▼ [디버깅 로그 3 추가] ▼▼▼
     // isOwner 변수가 실제로 어떻게 계산되었는지 확인합니다.
     console.log("BookingBox [isOwner 계산 결과]:", isOwner); 
-    // ▲▲▲ [로그 추가 완료] ▲▲▲
-
 
     const handleReservation = async () => {
         // ... (함수 내용은 이전과 동일) ...
@@ -67,13 +60,12 @@ const BookingBox = ({ contentId, navigateTo, user, contentAuthorId = null, setSh
             return;
         }
 
-        // --- ▼ [수정] 로그인 안된 경우 모달 띄우기 ▼ ---
+        // --- ▼  로그인 안된 경우 모달 띄우기 ▼ ---
         if (!user.isLoggedIn) {
             // navigateTo('login'); // 기존 코드
             setShowAuthModal(true); // 모달을 띄우도록 변경
             return;
         }
-        // --- ▲ [수정 완료] ▲ ---
 
         setBookingLoading(true);
         try {

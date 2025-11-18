@@ -102,15 +102,13 @@ const DetailView = ({ content, navigateTo }) => (
         {content.price ? `${content.price.toLocaleString()}원` : '가격 정보 없음'}
       </p>
 
-      {/* --- ▼▼▼ [신규] "상세 페이지로 이동" 버튼 ▼▼▼ --- */}
+      {/* --- ▼  "상세 페이지로 이동" 버튼 ▼ --- */}
       <button
         onClick={() => navigateTo('detail', content.id)}
         className="w-full mt-4 px-4 py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition-colors"
       >
         상세 페이지로 이동
       </button>
-      {/* --- ▲▲▲ [신규] 버튼 추가 완료 ▲▲▲ --- */}
-
     </div>
   </>
 );
@@ -124,7 +122,7 @@ const MapSidebar = ({ content, list, onClose, onItemClick, navigateTo }) => {
       <>
         <SidebarStyles />
         <div className="map-sidebar">
-          {/* [수정] 닫기 버튼 대신 "목록으로" 버튼 (UX 개선) */}
+          {/*  닫기 버튼 대신 "목록으로" 버튼 (UX 개선) */}
           <button 
             className="absolute top-4 left-4 z-10 bg-white px-3 py-1 rounded-full shadow-md text-sm font-semibold hover:bg-gray-100 transition"
             onClick={onClose}

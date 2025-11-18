@@ -5,16 +5,15 @@ const DEFAULT_IMAGE_URL = 'https://placehold.co/400x250/374151/ffffff?text=Image
 // 백엔드 Seed 데이터에 사용된 더미 스토리지 도메인
 const DUMMY_STORAGE_DOMAIN = 'travia-storage.com';
 
-/**
- * 콘텐츠 목록의 단일 카드를 렌더링하고 클릭 시 상세 페이지로 이동시킵니다.
- */
+
+//콘텐츠 목록의 단일 카드를 렌더링하고 클릭 시 상세 페이지로 이동시킵니다.
 const ContentCard = ({ content, navigateTo }) => {
     // 💡 개선된 이미지 URL 처리 로직
     // 1. content.main_image_url이 유효한 HTTP/HTTPS URL이 아니거나
     // 2. Seed 데이터에 사용된 더미 도메인(travia-storage.com)을 포함하는 경우
     //    플레이스홀더를 사용합니다.
 
-    // ▼ [수정] 'http'로 시작하거나 '/' (로컬 public 경로)로 시작하는 경우 모두 유효 처리
+    // ▼  'http'로 시작하거나 '/' (로컬 public 경로)로 시작하는 경우 모두 유효 처리
     const isUrlValid =
         content.main_image_url &&
         (content.main_image_url.startsWith('http') || content.main_image_url.startsWith('/')) &&
