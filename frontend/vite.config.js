@@ -8,6 +8,6 @@ export default defineConfig({
   plugins: [react()],
   server: {
     open: true  // 브라우저 자동 실행
-    // [수정] proxy: { ... } 설정 전체 삭제
+    //  proxy: { ... } 설정 전체 삭제
   }
 })
