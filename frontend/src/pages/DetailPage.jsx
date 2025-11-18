@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
-// --- ▼ [수정] import 경로에서 .jsx 확장자 제거 ▼ ---
 import BookingBox from '../components/BookingBox';
 import ContentInfo from '../components/ContentInfo'; // 콘텐츠 정보 표시
 import ReviewsSection from '../components/ReviewsSection'; // 리뷰 무한 스크롤 담당
 import RelatedContentSection from '../components/RelatedContentSection'; // 관련 콘텐츠 무한 스크롤 담당
-// --- ▲ [수정 완료] ▲ ---
 import { ThreeDots } from 'react-loader-spinner';
 
 // 백엔드 기본 URL 및 설정값
@@ -14,9 +12,8 @@ const DEFAULT_IMAGE_URL = 'https://placehold.co/800x500/374151/ffffff?text=DETAI
 const REVIEWS_PER_PAGE = 5; // 첫 페이지에 로드할 리뷰 개수
 const RELATED_PER_PAGE = 4; // 첫 페이지에 로드할 관련 콘텐츠 개수
 
-/**
- * 이미지 URL 유효성 검사 및 Placeholder 반환 (하위 컴포넌트로 전달)
- */
+
+//이미지 URL 유효성 검사 및 Placeholder 반환 (하위 컴포넌트로 전달)
 const getImageUrl = (url) => {
     const isUrlValid =
         url &&
@@ -30,9 +27,9 @@ const getImageUrl = (url) => {
  * - 초기 데이터 로딩 담당
  * - 하위 컴포넌트에 props 전달
  */
- // --- ▼ [수정] setShowAuthModal prop 추가 ▼ ---
+ // --- ▼  setShowAuthModal prop 추가 ▼ ---
 function DetailPage({ contentId, navigateTo, user, setShowAuthModal }) {
-    // --- ▼ [수정] 상태 단순화: 초기 데이터만 관리 ▼ ---
+    // --- ▼  상태 단순화: 초기 데이터만 관리 ▼ ---
     const [content, setContent] = useState(null); // 콘텐츠 상세 정보
     const [initialReviews, setInitialReviews] = useState([]); // 초기 리뷰 목록
     const [totalReviews, setTotalReviews] = useState(0); // 전체 리뷰 개수
@@ -40,9 +37,9 @@ function DetailPage({ contentId, navigateTo, user, setShowAuthModal }) {
     const [totalRelated, setTotalRelated] = useState(0); // 전체 관련 콘텐츠 개수
     const [loading, setLoading] = useState(true); // 초기 로딩 상태
     const [error, setError] = useState(null); // 에러 상태
-    // --- ▲ [수정 완료] ▲ ---
+    
 
-    // --- ▼ [수정] 초기 데이터 페칭 로직 (props 준비) ▼ ---
+    // --- ▼  초기 데이터 페칭 로직 (props 준비) ▼ ---
     useEffect(() => {
         if (!contentId) {
             setError("콘텐츠 ID가 유효하지 않습니다.");
@@ -65,7 +62,6 @@ function DetailPage({ contentId, navigateTo, user, setShowAuthModal }) {
                 // --- ▼ [FIX 1] 404 오류 해결: API 경로 수정 ▼ ---
                 // 백엔드 prefix 중복이 해결되었으므로, 원래 경로(/content/{id})로 수정
                 const response = await fetch(`${API_BASE_URL}/content/${contentId}?reviews_page=1&reviews_per_page=${REVIEWS_PER_PAGE}&related_page=1&related_per_page=${RELATED_PER_PAGE}`);
-                // --- ▲ [FIX 1] 수정 완료 ▲ ---
 
                 if (!response.ok) {
                     const errorData = await response.text().catch(() => '서버 응답 없음');
@@ -83,7 +79,6 @@ function DetailPage({ contentId, navigateTo, user, setShowAuthModal }) {
                     tags: data.tags ? data.tags.map(tag => tag.name) : []
                 };
                 setContent(fixedData); // 변환된 데이터로 콘텐츠 정보 설정
-                // --- ▲ [FIX 2] 수정 완료 ▲ ---
 
                 // 하위 컴포넌트에 전달할 초기 데이터 및 전체 개수 설정
                 setInitialReviews(data.reviews || []);
@@ -101,9 +96,9 @@ function DetailPage({ contentId, navigateTo, user, setShowAuthModal }) {
 
         fetchContentDetail();
     }, [contentId]);
-    // --- ▲ [수정 완료] ▲ ---
+    
 
-    // --- ▼▼▼ [신규 추가] 스크롤 상단 이동 useEffect ▼▼▼ ---
+    // --- ▼  스크롤 상단 이동 useEffect ▼ ---
     useEffect(() => {
         // contentId가 변경될 때마다 (즉, 새 콘텐츠가 로드될 때마다)
         // 윈도우 스크롤을 맨 위(0, 0)로 즉시 이동시킵니다.
@@ -113,7 +108,6 @@ function DetailPage({ contentId, navigateTo, user, setShowAuthModal }) {
             console.error("스크롤을 맨 위로 이동하는 데 실패했습니다:", e);
         }
     }, [contentId]); // 👈 contentId가 바뀔 때마다 실행
-    // --- ▲▲▲ [신규 추가] ▲▲▲ ---
 
     // --- 로딩 및 오류 상태 렌더링 ---
     if (loading) {
@@ -143,7 +137,7 @@ function DetailPage({ contentId, navigateTo, user, setShowAuthModal }) {
          return <div className="p-8 text-center">요청하신 콘텐츠를 찾을 수 없습니다. (ID: {contentId})</div>;
     }
 
-    // --- ▼ [수정] 최종 렌더링: 하위 컴포넌트 사용 ▼ ---
+    // --- ▼  최종 렌더링: 하위 컴포넌트 사용 ▼ ---
     return (
         <div className="p-4 sm:p-8">
             <div className="flex flex-col lg:flex-row gap-8">
@@ -162,9 +156,8 @@ function DetailPage({ contentId, navigateTo, user, setShowAuthModal }) {
                 </div>
 
                 {/* --- 오른쪽 예약 박스 및 관련 콘텐츠 --- */}
-                {/* --- ▼▼▼ [수정] className 오타 수정 ▼▼▼ --- */}
+                {/* --- ▼  className 오타 수정 ▼ --- */}
                 <div className="w-full lg:w-4/12">
-                {/* --- ▲▲▲ [수정 완료] ▲▲▲ --- */}
                     <div className="lg:sticky lg:top-8 space-y-6">
                         {/* 3. 예약 박스 (기존과 동일) */}
                         <BookingBox
@@ -172,7 +165,7 @@ function DetailPage({ contentId, navigateTo, user, setShowAuthModal }) {
                             navigateTo={navigateTo}
                             contentId={contentId}
                             contentAuthorId={content?.guide_id}
-                            setShowAuthModal={setShowAuthModal} // --- [수정] prop 전달 ---
+                            setShowAuthModal={setShowAuthModal} // ---  prop 전달 ---
                         />
                         {/* 4. 관련 콘텐츠 섹션 (RelatedContentSection 컴포넌트 사용) */}
                          <RelatedContentSection
@@ -183,12 +176,9 @@ function DetailPage({ contentId, navigateTo, user, setShowAuthModal }) {
                          />
                     </div>
                 </div>
-
-            </div> {/* --- 메인 레이아웃 종료 --- */}
+            </div>
         </div>
     );
-    // --- ▲ [수정 완료] ▲ ---
 }
 
 export default DetailPage;
-

@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 // FastAPI 서버의 주소
 const API_BASE_URL = 'http://localhost:8000'; 
 
-// ▼▼▼ [신규] App.jsx에서 decodeToken 함수 복사 ▼▼▼
+// ▼  App.jsx에서 decodeToken 함수 복사 ▼
 /**
  * 토큰 디코딩 함수 (단순 Base64 디코딩)
  * @param {string} token - JWT 토큰
@@ -20,8 +20,6 @@ const decodeToken = (token) => {
         return null;
     }
 };
-// ▲▲▲ [신규] 함수 복사 완료 ▲▲▲
-
 
 /**
  * 로그인 페이지 컴포넌트
@@ -64,7 +62,7 @@ const LoginPage = ({ login, navigateTo }) => {
             
             // --- 2단계: 토큰 확보 및 디코딩 ---
             const token = loginResult.access_token;
-            const payload = decodeToken(token); // [수정] 토큰 즉시 디코딩
+            const payload = decodeToken(token); //  토큰 즉시 디코딩
 
             if (!payload) {
                 setErrorMessage("토큰 디코딩에 실패했습니다. 토큰 형식이 잘못되었습니다.");
@@ -74,7 +72,7 @@ const LoginPage = ({ login, navigateTo }) => {
 
             // --- 3단계: 모든 정보 localStorage에 저장 ---
             
-            // [수정] payload에서 직접 사용자 정보를 추출합니다.
+            //  payload에서 직접 사용자 정보를 추출합니다.
             // (백엔드 스키마/JWT 설정에 따라 키 이름이 다를 수 있습니다)
             // 가정: 'sub' = id, 'nickname' = username, 'user_type' = user_type
             const userId = payload.id || payload.sub; // 'id' 혹은 'sub' (표준)
@@ -108,7 +106,7 @@ const LoginPage = ({ login, navigateTo }) => {
         <div className="flex items-center justify-center min-h-screen bg-gray-50">
             <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-2xl space-y-6">
                 
-                {/* --- ▼ [신규] 로고 추가 ▼ --- */}
+                {/* --- ▼  로고 추가 ▼ --- */}
                 <div className="flex flex-col items-center">
                     <img 
                         src="/image3.png" 
@@ -120,7 +118,6 @@ const LoginPage = ({ login, navigateTo }) => {
                         Travia 로그인
                     </h2>
                 </div>
-                {/* --- ▲ [신규] 로고 추가 완료 ▲ --- */}
 
                 {errorMessage && (
                     <div className="p-3 text-sm text-red-700 bg-red-100 rounded-lg text-center font-medium">
@@ -158,12 +155,13 @@ const LoginPage = ({ login, navigateTo }) => {
                         {loading ? '로그인 중...' : '로그인'}
                     </button>
                 </form>
-                <div className="text-center text-sm">
-                    <button 
-                        onClick={() => navigateTo('main')}
-                        className="font-medium text-indigo-600 hover:text-indigo-500"
+                <div className="text-sm text-gray-500 text-center mt-6">
+                    아직 계정이 없으신가요?{" "}
+                    <button
+                        onClick={() => navigateTo("signup")}
+                        className="text-indigo-500 font-medium hover:underline"
                     >
-                        아직 회원이 아니신가요? (메인으로 돌아가기)
+                        회원가입
                     </button>
                 </div>
             </div>

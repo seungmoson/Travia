@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-// [수정] react-router-dom의 useNavigate import 제거
+//  react-router-dom의 useNavigate import 제거
 // import { useNavigate } from 'react-router-dom'; 
 import styled from 'styled-components';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
-// [추가] 로딩 스피너 (MyPage와 동일)
+//  로딩 스피너 (MyPage와 동일)
 import { ThreeDots } from 'react-loader-spinner';
 
 // --- Styled Components (기존과 동일) ---
@@ -155,7 +155,7 @@ const RejectButton = styled(ActionButton)`
   }
 `;
 
-// --- ▼ [신규 추가] '여행 완료' 버튼 스타일 ▼ ---
+// --- ▼  '여행 완료' 버튼 스타일 ▼ ---
 const CompleteButton = styled(ActionButton)`
   background-color: #3498db; /* 파란색 계열 */
   color: white;
@@ -163,7 +163,6 @@ const CompleteButton = styled(ActionButton)`
     background-color: #2980b9;
   }
 `;
-// --- ▲ [신규 추가 완료] ▲ ---
 
 const LoadingContainer = styled.div`
   display: flex;
@@ -172,21 +171,19 @@ const LoadingContainer = styled.div`
   height: 300px;
 `;
 // --- Styled Components (기존과 동일) ---
-
-
-// [수정] App.jsx로부터 user, navigateTo props를 받도록 변경
+//  App.jsx로부터 user, navigateTo props를 받도록 변경
 function GuideDashboard({ user, navigateTo }) {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // [추가] API 호출 중인 예약 ID (버튼 비활성화용)
+  //  API 호출 중인 예약 ID (버튼 비활성화용)
   const [processingId, setProcessingId] = useState(null);
   
-  // [수정] useNavigate 훅 제거
+  //  useNavigate 훅 제거
   // const navigate = useNavigate();
 
-  // [신규] 예약 정렬 함수 (기존과 동일)
+  //  예약 정렬 함수 (기존과 동일)
   const sortBookings = (bookingArray) => {
     return [...bookingArray].sort((a, b) => {
       // 1순위: Pending
@@ -206,7 +203,7 @@ function GuideDashboard({ user, navigateTo }) {
     if (!token) {
       setError('로그인이 필요합니다.');
       setLoading(false);
-      // [수정] navigate('/login') 대신 navigateTo('login') 사용
+      //  navigate('/login') 대신 navigateTo('login') 사용
       navigateTo('login');
       return;
     }
@@ -235,7 +232,7 @@ function GuideDashboard({ user, navigateTo }) {
     } finally {
       setLoading(false);
     }
-    // [수정] 의존성 배열에 navigate 대신 navigateTo 추가
+    //  의존성 배열에 navigate 대신 navigateTo 추가
   }, [navigateTo]); 
 
   // 마운트 시 예약 정보 가져오기
@@ -244,12 +241,12 @@ function GuideDashboard({ user, navigateTo }) {
   }, [fetchBookings]);
 
 
-  // [신규] 예약 상태 업데이트 공통 함수 (승인 / 거절 / 완료)
+  //  예약 상태 업데이트 공통 함수 (승인 / 거절 / 완료)
   const handleUpdateBookingStatus = async (bookingId, action) => {
     const token = localStorage.getItem('token');
     if (!token) {
       alert('로그인이 필요합니다.');
-      // [수정] navigate('/login') 대신 navigateTo('login') 사용
+      //  navigate('/login') 대신 navigateTo('login') 사용
       navigateTo('login');
       return;
     }
@@ -297,9 +294,7 @@ function GuideDashboard({ user, navigateTo }) {
     }
   };
 
-
   // --- 렌더링 로직 ---
-
   if (loading) {
     return (
       <LoadingContainer>
@@ -356,7 +351,7 @@ function GuideDashboard({ user, navigateTo }) {
                     {booking.status}
                   </StatusBadge>
                   
-                  {/* --- ▼ [수정] 'Pending' 상태일 때 ▼ --- */}
+                  {/* --- ▼  'Pending' 상태일 때 ▼ --- */}
                   {booking.status === 'Pending' && (
                     <>
                       <ApproveButton
@@ -373,9 +368,8 @@ function GuideDashboard({ user, navigateTo }) {
                       </RejectButton>
                     </>
                   )}
-                  {/* --- ▲ [수정 완료] ▲ --- */}
 
-                  {/* --- ▼ [신규 추가] 'Confirmed' 상태일 때 ▼ --- */}
+                  {/* --- ▼  'Confirmed' 상태일 때 ▼ --- */}
                   {booking.status === 'Confirmed' && (
                     <CompleteButton
                       onClick={() => handleUpdateBookingStatus(booking.booking_id, 'complete')}
@@ -384,8 +378,6 @@ function GuideDashboard({ user, navigateTo }) {
                       {isProcessing ? '처리중...' : '여행 완료'}
                     </CompleteButton>
                   )}
-                  {/* --- ▲ [신규 추가 완료] ▲ --- */}
-
                 </InfoRight>
               </BookingDetails>
             </BookingItem>

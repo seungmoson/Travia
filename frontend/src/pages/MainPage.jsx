@@ -1,10 +1,8 @@
-// [수정] useCallback, useRef, useMemo 훅 추가
+//  useCallback, useRef, useMemo 훅 추가
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-// --- ▼ [오류 수정] 컴파일 오류 해결을 위해 import 구문 제거 ▼ ---
 // import ContentList from '../components/ContentList';
 // import SearchBar from '../components/SearchBar';
-// --- ▲ [오류 수정 완료] ▲ ---
-// [수정] react-loader-spinner 임포트 제거 (컴파일 오류 수정)
+//  react-loader-spinner 임포트 제거 (컴파일 오류 수정)
 // import { ThreeDots } from 'react-loader-spinner'; 
 
 const API_BASE_URL = 'http://localhost:8000';
@@ -27,7 +25,6 @@ const MainPage = ({ user, navigateTo }) => {
     const [loadingMore, setLoadingMore] = useState(false);
     const [hasMore, setHasMore] = useState(true);
     const observerRef = useRef(null);
-    // --- ▲ 무한 스크롤 상태 완료 ▲ ---
 
     // --- ▼ [REFACTOR] 검색 및 태그 관련 상태 ▼ ---
     const [inputValue, setInputValue] = useState(""); // 텍스트 입력창의 현재 값
@@ -42,14 +39,12 @@ const MainPage = ({ user, navigateTo }) => {
     const [isSearchFocused, setIsSearchFocused] = useState(false); // SearchBar 포커스
     const [allTags, setAllTags] = useState([]); // SearchBar 드롭다운용 태그 목록
     const searchWrapperRef = useRef(null); // 외부 클릭 감지용
-    // --- ▲ [REFACTOR] ▲ ---
 
-
-    // --- ▼ [수정] 태그 로드 useEffect (인기태그 + 드롭다운용 태그) ▼ ---
+    // --- ▼  태그 로드 useEffect (인기태그 + 드롭다운용 태그) ▼ ---
     useEffect(() => {
         const fetchTags = async () => {
             try {
-                // [수정] ?limit=30 제거 -> 모든 태그를 가져오도록 변경
+                //  ?limit=30 제거 -> 모든 태그를 가져오도록 변경
                 const response = await fetch(`${API_BASE_URL}/content/tags`);
                 if (!response.ok) {
                     throw new Error("Failed to fetch popular tags");
@@ -63,7 +58,7 @@ const MainPage = ({ user, navigateTo }) => {
         };
         fetchTags();
     }, []);
-    // --- ▲ [수정 완료] ▲ ---
+    
 
 
     // --- ▼ [REFACTOR] 콘텐츠 로드 로직 (1페이지 로드) ▼ ---
@@ -81,7 +76,7 @@ const MainPage = ({ user, navigateTo }) => {
                     per_page: CONTENTS_PER_PAGE,
                 });
 
-                // --- ▼ [핵심 수정] 텍스트 검색어와 태그 검색어를 '하나의 q 리스트'로 통합 (OR) ▼ ---
+                // --- ▼  텍스트 검색어와 태그 검색어를 '하나의 q 리스트'로 통합 (OR) ▼ ---
                 const textTerms = searchParams.text.split(' ').filter(t => t.trim() !== '');
                 const allTerms = [...searchParams.tags, ...textTerms];
                 const uniqueTerms = [...new Set(allTerms)];
@@ -89,7 +84,6 @@ const MainPage = ({ user, navigateTo }) => {
                 if (uniqueTerms.length > 0) {
                     uniqueTerms.forEach(term => params.append('q', term));
                 }
-                // --- ▲ [핵심 수정 완료] ▲ ---
 
                 const response = await fetch(`${API_BASE_URL}/content/list?${params.toString()}`);
                 
@@ -117,7 +111,6 @@ const MainPage = ({ user, navigateTo }) => {
         fetchInitialContents();
     // [REFACTOR]
     }, [searchParams]); 
-    // --- ▲ [REFACTOR] ▲ ---
 
     // --- ▼ [REFACTOR] 추가 로드 useCallback (무한 스크롤용) ▼ ---
     const loadMoreContents = useCallback(async () => {
@@ -172,15 +165,12 @@ const MainPage = ({ user, navigateTo }) => {
         }
     // [REFACTOR]
     }, [searchParams, loading, loadingMore, hasMore, currentPage]);
-    // --- ▲ [REFACTOR] ▲ ---
-
 
     // --- ▼ 검색 실행 핸들러 (텍스트 입력용) ▼ ---
     const handleSearchSubmit = () => {
         // [REFACTOR]
         setSearchParams(prev => ({ ...prev, text: inputValue }));
     };
-    // --- ▲ [REFACTOR] ▲ ---
 
     // --- ▼ 태그 클릭 핸들러 (인기 태그 또는 검색창 태그 클릭 시) ▼ ---
     const handleTagClick = (tagName) => {
@@ -193,9 +183,8 @@ const MainPage = ({ user, navigateTo }) => {
         }
         setInputValue(""); 
     };
-    // --- ▲ [REFACTOR] ▲ ---
 
-    // --- ▼ [신규] 선택된 태그 제거 핸들러 ▼ ---
+    // --- ▼  선택된 태그 제거 핸들러 ▼ ---
     const handleRemoveTag = (tagName) => {
         // [REFACTOR]
         setSearchParams(prev => ({
@@ -203,18 +192,17 @@ const MainPage = ({ user, navigateTo }) => {
             tags: prev.tags.filter(tag => tag !== tagName)
         }));
     };
-    // --- ▲ [REFACTOR] ▲ ---
 
-    // --- ▼ [신규] 모든 태그 제거 핸들러 ▼ ---
+    // --- ▼  모든 태그 제거 핸들러 ▼ ---
     const handleClearAllTags = () => {
         setSearchParams(prev => ({
             ...prev,
             tags: [] // 태그 목록을 빈 배열로 초기화
         }));
     };
-    // --- ▲ [신규] ▲ ---
+    
 
-    // --- ▼ [신규] 검색창 외부 클릭 감지 ▼ ---
+    // --- ▼  검색창 외부 클릭 감지 ▼ ---
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (searchWrapperRef.current && !searchWrapperRef.current.contains(event.target)) {
@@ -226,7 +214,7 @@ const MainPage = ({ user, navigateTo }) => {
             document.removeEventListener("mousedown", handleClickOutside);
         };
     }, []);
-    // --- ▲ [신규] ▲ ---
+    
 
 
     // --- Intersection Observer 설정 (변경 없음) ---
@@ -257,7 +245,7 @@ const MainPage = ({ user, navigateTo }) => {
     if (loading && currentPage === 1) { 
         return (
             <div className="flex justify-center items-center h-screen bg-gray-50">
-                {/* [수정] ThreeDots -> 텍스트 로더 */}
+                {/*  ThreeDots -> 텍스트 로더 */}
                 <div className="text-xl font-semibold text-indigo-600">로딩 중...</div>
             </div>
         );
@@ -281,19 +269,19 @@ const MainPage = ({ user, navigateTo }) => {
                 {/* 검색창은 "결과 없음" 페이지에도 표시 */}
                 <div 
                     className="bg-white rounded-xl shadow-lg p-5 space-y-4"
-                    ref={searchWrapperRef} // [신규] 외부 클릭 감지 Ref
+                    ref={searchWrapperRef} //  외부 클릭 감지 Ref
                 >
                     <SearchBar
                         inputValue={inputValue}
                         onInputChange={setInputValue}
                         onSearchSubmit={handleSearchSubmit}
-                        tagsToShow={allTags} // [수정] 드롭다운용 태그 전달
+                        tagsToShow={allTags} //  드롭다운용 태그 전달
                         onTagClick={handleTagClick}
                         selectedTags={searchParams.tags} // [REFACTOR]
-                        onRemoveTag={handleRemoveTag} // [신규] 태그 제거 함수 전달
-                        onClearAllTags={handleClearAllTags} // [신규] '모두 지우기' 함수 전달
-                        isFocused={isSearchFocused} // [신규] 포커스 상태 전달
-                        onFocus={() => setIsSearchFocused(true)} // [신규] 포커스 이벤트 전달
+                        onRemoveTag={handleRemoveTag} //  태그 제거 함수 전달
+                        onClearAllTags={handleClearAllTags} //  '모두 지우기' 함수 전달
+                        isFocused={isSearchFocused} //  포커스 상태 전달
+                        onFocus={() => setIsSearchFocused(true)} //  포커스 이벤트 전달
                     />
                 </div>
                 
@@ -312,43 +300,39 @@ const MainPage = ({ user, navigateTo }) => {
             </div>
         );
     }
-    // --- ▲ [REFACTOR] ▲ ---
 
     // --- ▼ [REFACTOR] 페이지 제목 동적 변경 ▼ ---
     const pageTitle = hasSearchCriteria
         ? `검색 결과 (${totalCount || 0}개)`
         : `추천 콘텐츠 (${totalCount || 0}개)`;
-    // --- ▲ [REFACTOR] ▲ ---
 
     // --- 메인 콘텐츠 렌더링 ---
     return (
         <div className="p-4 sm:p-6 md:p-8 space-y-6">
             
-            {/* --- ▼ [수정] 상단 검색 영역 (sticky 속성 제거) ▼ --- */}
+            {/* --- ▼  상단 검색 영역 (sticky 속성 제거) ▼ --- */}
             <div 
-                className="bg-white rounded-xl shadow-lg p-5 space-y-4" // [수정] sticky top-4 z-10 제거
-                ref={searchWrapperRef} // [신규] 외부 클릭 감지 Ref
+                className="bg-white rounded-xl shadow-lg p-5 space-y-4" //  sticky top-4 z-10 제거
+                ref={searchWrapperRef} //  외부 클릭 감지 Ref
             >
                 <SearchBar
                     inputValue={inputValue}
                     onInputChange={setInputValue}
                     onSearchSubmit={handleSearchSubmit}
-                    tagsToShow={allTags} // [수정] popularTags -> tagsToShow (드롭다운용)
+                    tagsToShow={allTags} //  popularTags -> tagsToShow (드롭다운용)
                     onTagClick={handleTagClick}
                     selectedTags={searchParams.tags} // [REFACTOR]
-                    onRemoveTag={handleRemoveTag} // [신규]
-                    onClearAllTags={handleClearAllTags} // [신규] '모두 지우기' 함수 전달
-                    isFocused={isSearchFocused} // [신규]
-                    onFocus={() => setIsSearchFocused(true)} // [신규]
+                    onRemoveTag={handleRemoveTag} // 
+                    onClearAllTags={handleClearAllTags} //  '모두 지우기' 함수 전달
+                    isFocused={isSearchFocused} // 
+                    onFocus={() => setIsSearchFocused(true)} // 
                 />
             </div>
-            {/* --- ▲ [수정 완료] ▲ --- */}
 
-
-            {/* --- ▼ [오류 수정] 클릭 문제 해결을 위한 z-index 래퍼 (이제 필요 없으므로 제거) ▼ --- */}
+            {/* --- ▼ 클릭 문제 해결을 위한 z-index 래퍼 (이제 필요 없으므로 제거) ▼ --- */}
             <div className="space-y-6">
             
-                {/* --- ▼ [신규] '내 근처' 지도 배너 ▼ --- */}
+                {/* --- ▼  '내 근처' 지도 배너 ▼ --- */}
                 {/* 검색 조건이 없을 때만 (기본 메인 페이지일 때만) 배너를 표시합니다. */}
                 {!hasSearchCriteria && (
                     <div
@@ -362,21 +346,19 @@ const MainPage = ({ user, navigateTo }) => {
                             borderRadius: '8px'
                         }}
                         className="hover:shadow-lg transition-shadow"
-                        onClick={() => navigateTo('map')} // 👈 [핵심] App.jsx의 navigateTo('map') 호출
+                        onClick={() => navigateTo('map')} // 👈  App.jsx의 navigateTo('map') 호출
                     >
                         <h2 className="text-2xl font-bold mb-2">🗺️ '내 근처' 투어 상품 찾기</h2>
                         <p>지도를 펼쳐서 주변의 투어 상품을 확인하세요! (클릭)</p>
                     </div>
                 )}
-                {/* --- ▲ [신규] 배너 완료 ▲ --- */}
 
 
-                {/* --- ▼ [삭제] 사이드 인기 태그 섹션 ▼ --- */}
+                {/* --- ▼ 사이드 인기 태그 섹션 ▼ --- */}
                 {/* {popularTags.length > 0 && !hasSearchCriteria && (
                     ...
                 )}
                 */}
-                {/* --- ▲ [삭제 완료] ▲ --- */}
 
                 <h1 className="text-2xl font-bold text-gray-800 pt-4">
                     {pageTitle}
@@ -389,7 +371,7 @@ const MainPage = ({ user, navigateTo }) => {
                 {totalCount > CONTENTS_PER_PAGE && (
                     <div ref={observerRef} className="h-20 flex justify-center items-center">
                         {loadingMore && (
-                            // [수정] ThreeDots -> 텍스트 로더
+                            //  ThreeDots -> 텍스트 로더
                             <div className="text-md text-gray-600">추가 로딩 중...</div>
                         )}
                         {!loadingMore && !hasMore && contents.length > 0 && (
@@ -399,7 +381,6 @@ const MainPage = ({ user, navigateTo }) => {
                 )}
 
             </div>
-            {/* --- ▲ [오류 수정 완료] ▲ --- */}
         </div>
     );
 };
@@ -417,9 +398,8 @@ const ContentList = ({ contents, navigateTo, user }) => {
                 <div 
                     key={content.id} 
                     className="border rounded-lg shadow-lg overflow-hidden cursor-pointer transition-transform duration-200 hover:scale-[1.02]"
-                    // --- ▼ [핵심 수정] App.jsx의 로그에 맞춰 navigateTo 호출 방식 변경 ▼ ---
+                    // --- ▼  App.jsx의 로그에 맞춰 navigateTo 호출 방식 변경 ▼ ---
                     onClick={() => navigateTo('detail', content.id)}
-                    // --- ▲ [핵심 수정 완료] ▲ ---
                 >
                     <img 
                         src={content.main_image_url || 'https://placehold.co/600x400/eee/ccc?text=Image'} 
@@ -437,10 +417,9 @@ const ContentList = ({ contents, navigateTo, user }) => {
     );
 };
  
-// --- ▼ [수정] 하단 SearchBar 정의를 최신 버전으로 교체 ▼ ---
-
+// --- ▼  하단 SearchBar 정의를 최신 버전으로 교체 ▼ ---
 /**
- * [수정됨] 검색 입력창, 선택된 태그(알약), 포커스 시 태그 드롭다운을 렌더링하는 UI 컴포넌트
+ *  검색 입력창, 선택된 태그(알약), 포커스 시 태그 드롭다운을 렌더링하는 UI 컴포넌트
  * (가상 스크롤/무한 스크롤 기능 추가)
  *
  * @param {object} props
@@ -463,20 +442,19 @@ const SearchBar = ({
     onTagClick,
     selectedTags = [],
     onRemoveTag,
-    onClearAllTags, // [신규] prop 추가
+    onClearAllTags, //  prop 추가
     isFocused,
     onFocus
 }) => {
 
-    // --- ▼ [신규] 가상 스크롤/무한 스크롤을 위한 설정 ▼ ---
-    
+    // --- ▼  가상 스크롤/무한 스크롤을 위한 설정 ▼ ---
     // 한 번에 렌더링할 태그 수
     const TAG_SLICE_SIZE = 50; 
     
     // 현재 화면에 보여줄 태그 개수를 관리하는 상태
     const [visibleTagCount, setVisibleTagCount] = useState(TAG_SLICE_SIZE);
 
-    // [수정] useMemo를 사용해 필터링 계산을 최적화
+    //  useMemo를 사용해 필터링 계산을 최적화
     // (props가 변경되지 않으면 이전에 계산된 값을 재사용)
     const filteredTags = useMemo(() => {
         return tagsToShow.filter(tag => 
@@ -485,19 +463,19 @@ const SearchBar = ({
         );
     }, [tagsToShow, inputValue, selectedTags]);
 
-    // [신규] 필터링된 태그 목록이 변경되면(예: 검색어 입력), 
+    //  필터링된 태그 목록이 변경되면(예: 검색어 입력), 
     // 화면에 보여줄 태그 개수를 초기화
     useEffect(() => {
         setVisibleTagCount(TAG_SLICE_SIZE);
     }, [filteredTags]);
 
-    // [신규] 현재 실제로 렌더링할 태그 목록 (전체 목록에서 visibleTagCount만큼 자름)
+    //  현재 실제로 렌더링할 태그 목록 (전체 목록에서 visibleTagCount만큼 자름)
     const tagsToRender = filteredTags.slice(0, visibleTagCount);
 
-    // [신규] 더 로드할 태그가 남아있는지 여부
+    //  더 로드할 태그가 남아있는지 여부
     const hasMoreTags = filteredTags.length > visibleTagCount;
 
-    // [신규] 드롭다운 스크롤 이벤트 핸들러
+    //  드롭다운 스크롤 이벤트 핸들러
     const handleScroll = (e) => {
         const { scrollHeight, scrollTop, clientHeight } = e.currentTarget;
         const buffer = 50; // 하단에 50px 남았을 때 미리 로드
@@ -511,8 +489,6 @@ const SearchBar = ({
             }
         }
     };
-    // --- ▲ [신규] 가상 스크롤/무한 스크롤 설정 완료 ▲ ---
-
 
     // 폼 제출 이벤트를 처리하는 핸들러
     const handleSubmit = (e) => {
@@ -521,19 +497,19 @@ const SearchBar = ({
     };
 
     return (
-        // [수정] onFocus 이벤트를 감지하기 위해 wrapper div에 onFocus props 연결
+        //  onFocus 이벤트를 감지하기 위해 wrapper div에 onFocus props 연결
         <div className="search-bar-container space-y-4 relative" onFocus={onFocus}>
             
-            {/* --- ▼ [수정] 레이아웃 구조 변경 ▼ --- */}
-            {/* [수정] form은 flex-wrap 제거, items-center 유지 */}
+            {/* --- ▼  레이아웃 구조 변경 ▼ --- */}
+            {/*  form은 flex-wrap 제거, items-center 유지 */}
             <form onSubmit={handleSubmit} className="flex items-center border border-gray-300 rounded-lg p-2 focus-within:ring-2 focus-within:ring-indigo-500 transition duration-200">
                 
-                {/* [신규] 태그와 입력을 묶는 래퍼 div 추가 (flex-grow로 남은 공간 차지) */}
+                {/*  태그와 입력을 묶는 래퍼 div 추가 (flex-grow로 남은 공간 차지) */}
                 <div className="flex-grow flex flex-wrap items-center gap-y-1 gap-x-2 pr-2">
                     
-                    {/* [수정] 태그 맵핑은 래퍼 div 안으로 이동 */}
+                    {/*  태그 맵핑은 래퍼 div 안으로 이동 */}
                     {selectedTags.map((tag) => (
-                        <span key={tag} className="flex items-center px-3 py-1 rounded-full bg-indigo-100 text-indigo-700 text-base font-semibold"> {/* [수정] text-sm -> text-base */}
+                        <span key={tag} className="flex items-center px-3 py-1 rounded-full bg-indigo-100 text-indigo-700 text-base font-semibold"> {/*  text-sm -> text-base */}
                             {tag}
                             <button
                                 type="button"
@@ -546,19 +522,19 @@ const SearchBar = ({
                         </span>
                     ))}
 
-                    {/* [수정] 입력창도 래퍼 div 안으로 이동 */}
+                    {/*  입력창도 래퍼 div 안으로 이동 */}
                     <input
                         type="search"
                         placeholder={selectedTags.length > 0 ? "태그 추가 또는 키워드 검색" : "여행지 또는 #태그로 검색"}
                         value={inputValue}
                         onChange={(e) => onInputChange(e.target.value)}
-                        // [수정] text-sm -> text-base (높이/폰트 크기 일치)
+                        //  text-sm -> text-base (높이/폰트 크기 일치)
                         className="flex-grow min-w-0 text-base focus:outline-none py-1" 
-                        // [수정] onFocus는 wrapper div로 이동
+                        //  onFocus는 wrapper div로 이동
                     />
                 </div>
 
-                {/* --- ▼ [신규] '모두 지우기' 버튼 ▼ --- */}
+                {/* --- ▼  '모두 지우기' 버튼 ▼ --- */}
                 {/* 선택된 태그가 1개 이상일 때만 표시 */}
                 {selectedTags.length > 0 && (
                     <button
@@ -573,35 +549,31 @@ const SearchBar = ({
                         </svg>
                     </button>
                 )}
-                {/* --- ▲ [신규] '모두 지우기' 버튼 완료 ▲ --- */}
 
-
-                {/* [수정] 검색 버튼 (form의 직계 자식으로 변경) */}
-                {/* [수정] p-1 (유지), 아이콘 w-5 h-5 -> w-6 h-6 (높이 일치) */}
+                {/*  검색 버튼 (form의 직계 자식으로 변경) */}
+                {/*  p-1 (유지), 아이콘 w-5 h-5 -> w-6 h-6 (높이 일치) */}
                 <button 
                     type="submit" 
-                    className="flex-shrink-0 bg-indigo-600 text-white p-1 rounded-lg hover:bg-indigo-700 transition duration-200 ml-2" // [수정] ml-2 추가
+                    className="flex-shrink-0 bg-indigo-600 text-white p-1 rounded-lg hover:bg-indigo-700 transition duration-200 ml-2" //  ml-2 추가
                 >
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                 </button>
             </form>
-            {/* --- ▲ [수정 완료] ▲ --- */}
 
-
-            {/* --- ▼ [신규] 태그 드롭다운 목록 ▼ --- */}
+            {/* --- ▼  태그 드롭다운 목록 ▼ --- */}
             {/* isFocused가 true일 때만 드롭다운 표시 */}
             {isFocused && (
                 <div 
                     className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg z-20 max-h-60 overflow-y-auto"
-                    onScroll={handleScroll} // [신규] 스크롤 이벤트 리스너 추가
+                    onScroll={handleScroll} //  스크롤 이벤트 리스너 추가
                 >
                     
-                    {/* [수정] filteredTags.length -> tagsToRender.length로 변경 
+                    {/*  filteredTags.length -> tagsToRender.length로 변경 
                         (아니요, filteredTags.length가 맞습니다. 0개일 때를 확인해야 하므로) */}
                     {filteredTags.length > 0 ? (
                         <div className="flex flex-wrap gap-2 p-4">
                             
-                            {/* [수정] filteredTags.map -> tagsToRender.map로 변경 */}
+                            {/*  filteredTags.map -> tagsToRender.map로 변경 */}
                             {tagsToRender.map((tag) => (
                                 <button
                                     key={tag}
@@ -613,7 +585,7 @@ const SearchBar = ({
                                 </button>
                             ))}
 
-                            {/* [신규] 더 로드할 태그가 있으면 로딩 중 표시 */}
+                            {/*  더 로드할 태그가 있으면 로딩 중 표시 */}
                             {hasMoreTags && (
                                 <div className="w-full text-center p-2 text-sm text-gray-500">
                                     태그 불러오는 중...
@@ -630,11 +602,9 @@ const SearchBar = ({
 
                 </div>
             )}
-            {/* --- ▲ [신규] 태그 드롭다운 완료 ▲ --- */}
-
         </div>
     );
 };
-// --- ▲ [수정 완료] ▲ ---
+
 
 export default MainPage;

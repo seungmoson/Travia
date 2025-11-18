@@ -1,8 +1,6 @@
-// [신규 추가] ReviewModal 컴포넌트 import (경로 확인 필요)
+//  ReviewModal 컴포넌트 import (경로 확인 필요)
 import React, { useState, useEffect } from 'react';
-// --- ▼ [수정] 컴파일 오류 해결: import 경로 수정 (components 폴더로 가정) ▼ ---
-import ReviewModal from '../components/ReviewModal'; // 👈 [수정]
-// --- ▲ [수정 완료] ▲ ---
+import ReviewModal from '../components/ReviewModal'; // 👈 
 
 // 백엔드 API 주소
 const API_BASE_URL = 'http://localhost:8000';
@@ -19,20 +17,20 @@ const MyPage = ({ navigateTo, user }) => {
     const [error, setError] = useState(null);
     const [cancelingId, setCancelingId] = useState(null);
 
-    // --- [신규 추가] 리뷰 모달 관련 상태 ---
+    // ---  리뷰 모달 관련 상태 ---
     const [isModalOpen, setIsModalOpen] = useState(false);
     // 모달에 전달할 예약 정보 (id, title 등)
     const [selectedBooking, setSelectedBooking] = useState(null); 
-    // --- ▼ [수정] reviewedBookingIds 상태 제거 ▼ ---
+    // --- ▼  reviewedBookingIds 상태 제거 ▼ ---
     // (이제 API가 is_reviewed를 직접 제공하므로 이 상태는 필요 없음)
     // const [reviewedBookingIds, setReviewedBookingIds] = useState(new Set());
-    // --- ▲ [수정 완료] ▲ ---
+    
 
 
     // 컴포넌트 마운트 시 "내 예약 목록" API 호출
     useEffect(() => {
         const fetchMyBookings = async () => {
-            // [수정] setLoading(true)가 handleReviewSuccess에서도 호출되므로
+            //  setLoading(true)가 handleReviewSuccess에서도 호출되므로
             //       여기서는 fetchMyBookings가 호출될 때마다 로딩 상태를 보장
             setLoading(true);
             setError(null);
@@ -106,13 +104,13 @@ const MyPage = ({ navigateTo, user }) => {
                 throw new Error(errData.detail || `예약 취소 실패 (상태: ${response.status})`);
             }
 
-            // [수정] 취소 시 반환되는 데이터는 is_reviewed가 포함된 MyBookingSchema임
+            //  취소 시 반환되는 데이터는 is_reviewed가 포함된 MyBookingSchema임
             const canceledBooking = await response.json(); 
             // setBookings(prevBookings =>
             //     prevBookings.filter(booking => booking.booking_id !== canceledBooking.booking_id)
             // );
             
-            // [수정] filter 대신 map을 사용하여 상태를 'Canceled'로 즉시 업데이트
+            //  filter 대신 map을 사용하여 상태를 'Canceled'로 즉시 업데이트
             //       (API가 Canceled된 객체를 반환하므로)
             setBookings(prevBookings =>
                 prevBookings.map(b => 
@@ -132,8 +130,7 @@ const MyPage = ({ navigateTo, user }) => {
     };
 
 
-    // --- [신규 추가] 리뷰 모달 핸들러 ---
-    
+    // ---  리뷰 모달 핸들러 ---
     /**
      * [리뷰 작성] 버튼 클릭 시 모달 여는 함수
      * @param {object} booking - 클릭된 예약 정보
@@ -159,15 +156,15 @@ const MyPage = ({ navigateTo, user }) => {
         // 1. 모달 닫기
         handleCloseReviewModal();
         
-        // --- ▼ [수정] reviewedBookingIds 상태 업데이트 로직 제거 ▼ ---
+        // --- ▼  reviewedBookingIds 상태 업데이트 로직 제거 ▼ ---
         // setReviewedBookingIds(prevIds => new Set(prevIds).add(submittedBookingId));
-        // --- ▲ [수정 완료] ▲ ---
         
-        // --- ▼ [수정] 백엔드 데이터를 다시 불러와 화면 갱신 ▼ ---
+        
+        // --- ▼  백엔드 데이터를 다시 불러와 화면 갱신 ▼ ---
         // (가장 확실한 방법: 백엔드의 is_reviewed 값을 다시 가져옴)
         alert('리뷰가 등록되었습니다! 목록을 갱신합니다.');
         
-        // [수정] bookings 상태를 직접 업데이트하여 'is_reviewed'를 true로 변경
+        //  bookings 상태를 직접 업데이트하여 'is_reviewed'를 true로 변경
         //       (네트워크 호출을 줄이고 즉각적인 UI 반응)
         setBookings(prevBookings =>
             prevBookings.map(b =>
@@ -197,10 +194,8 @@ const MyPage = ({ navigateTo, user }) => {
         //      }
         //  };
         //  fetchAgain();
-        // --- ▲ [수정 완료] ▲ ---
+        
     };
-    // --- [신규 추가 완료] ---
-
 
     // 로딩 중 뷰 (기존과 동일)
     if (loading) {
@@ -250,7 +245,7 @@ const MyPage = ({ navigateTo, user }) => {
     return (
         <div className="space-y-8">
             <h1 className="text-3xl font-extrabold text-gray-900 border-b pb-4">
-                {/* [수정] user 객체가 null일 수 있으므로 안전 접근 연산자 사용 */}
+                {/*  user 객체가 null일 수 있으므로 안전 접근 연산자 사용 */}
                 {user?.username || '사용자'}님의 예약 내역 
             </h1>
 
@@ -330,7 +325,7 @@ const MyPage = ({ navigateTo, user }) => {
                                     )}
                                     
                                     
-                                    {/* --- 👇 [수정] [리뷰 작성] 버튼 로직 변경 👇 --- */}
+                                    {/* --- 👇  [리뷰 작성] 버튼 로직 변경 👇 --- */}
                                     
                                     {/* 조건 1: 상태가 'Completed'인가? */}
                                     {booking.status === 'Completed' && (
@@ -352,9 +347,6 @@ const MyPage = ({ navigateTo, user }) => {
                                             )}
                                         </>
                                     )}
-                                    
-                                    {/* --- ▲ [수정 완료] ▲ --- */}
-
                                 </div>
                             </div>
                         </div>
@@ -362,7 +354,7 @@ const MyPage = ({ navigateTo, user }) => {
                 )}
             </div>
 
-            {/* --- 👇 [신규 추가] 모달 렌더링 👇 --- */}
+            {/* --- 👇  모달 렌더링 👇 --- */}
             {isModalOpen && selectedBooking && (
                 <ReviewModal
                     booking={selectedBooking}
@@ -370,7 +362,6 @@ const MyPage = ({ navigateTo, user }) => {
                     onReviewSubmitSuccess={handleReviewSuccess} // 리뷰 성공 시 목록 갱신 함수 전달
                 />
             )}
-            {/* --- ▲ [신규 추가 완료] ▲ --- */}
         </div>
     );
 };

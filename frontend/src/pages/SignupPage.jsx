@@ -55,14 +55,14 @@ const SignupPage = ({ navigateTo }) => {
             <div className="w-full max-w-md bg-white p-8 rounded-3xl shadow-2xl space-y-6">
                 {/* 로고 */}
                 <div className="flex flex-col items-center">
-                    {/* [수정] 스크린샷을 바탕으로 src 경로를 /image3.png로 수정 */}
+                    {/*  스크린샷을 바탕으로 src 경로를 /image3.png로 수정 */}
                     <img 
                         src="/image3.png" 
                         alt="Travia Logo" 
-                        className="w-48 mb-2" // [수정] w-24, rounded-full -> w-48
+                        className="w-48 mb-2" //  w-24, rounded-full -> w-48
                         onError={(e) => { e.target.src = 'https://placehold.co/192x64/6366F1/FFFFFF?text=Travia+Logo'; e.target.onerror = null; }}
                     />
-                    <h1 className="text-3xl font-extrabold text-gray-900 mt-4">Travia 회원가입</h1> {/* [수정] 로고와 간격(mt-4) 추가 */}
+                    <h1 className="text-3xl font-extrabold text-gray-900 mt-4">Travia 회원가입</h1> {/*  로고와 간격(mt-4) 추가 */}
                     <p className="text-sm text-gray-500 mt-1">AI 기반 맞춤 여행 플랫폼</p>
                 </div>
 
@@ -107,7 +107,7 @@ const SignupPage = ({ navigateTo }) => {
                         />
                     </div>
                     
-                    {/* --- ▼ [수정] 사용자 유형 선택 UI 제거 ▼ --- */}
+                    {/* --- ▼  사용자 유형 선택 UI 제거 ▼ --- */}
                     {/* <div>
                         <label className="block text-gray-700 text-sm font-semibold mb-2">가입 유형</label>
                         <div className="flex space-x-4">
@@ -115,8 +115,6 @@ const SignupPage = ({ navigateTo }) => {
                         </div>
                     </div>
                     */}
-                    {/* --- ▲ [수정 완료] ▲ --- */}
-
 
                     <button
                         type="submit"
@@ -136,7 +134,7 @@ const SignupPage = ({ navigateTo }) => {
 
 
                 {/* 하단 */}
-                <p className="text-sm text-gray-500 text-center mt-6">
+                <div className="text-sm text-gray-500 text-center mt-6">
                     이미 계정이 있으신가요?{" "}
                     <button
                         onClick={() => navigateTo("login")}
@@ -144,7 +142,7 @@ const SignupPage = ({ navigateTo }) => {
                     >
                         로그인하기
                     </button>
-                </p>
+                </div>
             </div>
         </div>
     );
