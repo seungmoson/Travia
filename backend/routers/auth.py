@@ -1,18 +1,19 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta, timezone 
-from jose import JWTError, jwt 
-from passlib.context import CryptContext 
+from datetime import datetime, timedelta, timezone
+from jose import JWTError, jwt
+from passlib.context import CryptContext
 
 from database import get_db
 from models import User
-# [수정] LoginResponse 외 SignupRequest, UserPublic 스키마 import
 from schemas import LoginRequest, LoginResponse, SignupRequest, UserPublic
 
 # --- ▼ [JWT 설정] ▼ ---
-SECRET_KEY = "YOUR_VERY_SECRET_KEY_NEEDS_TO_BE_CHANGED" 
+# 실무에서는 환경변수(.env)로 관리하는 것이 좋습니다.
+SECRET_KEY = "YOUR_VERY_SECRET_KEY_NEEDS_TO_BE_CHANGED"
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30 
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # --- ▲ JWT 설정 끝 ▲ ---
@@ -43,17 +44,17 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
 
 # 1. APIRouter 인스턴스 생성
 router = APIRouter(
-    prefix="/auth", # [권장] /auth 접두사 추가
-    tags=["Auth"]   # [권장] API 문서 태그
+    prefix="/auth",  # URL prefix 설정 (/auth)
+    tags=["Auth"]    # 문서 태그 설정
 )
 
-# --- ▼▼▼ [신규] POST /signup 엔드포인트 ▼▼▼ ---
+
+# --- ▼ [회원가입 엔드포인트] ▼ ---
 @router.post("/signup", response_model=UserPublic, status_code=status.HTTP_201_CREATED)
 def create_user(request: SignupRequest, db: Session = Depends(get_db)):
     """
     새로운 사용자를 생성합니다. (회원가입)
     - username, email, password, user_type을 받습니다.
-    - user_type은 'traveler' 또는 'guide' 여야 합니다. (스키마에서 검증)
     """
     
     # 1. 이메일 중복 확인
@@ -68,11 +69,10 @@ def create_user(request: SignupRequest, db: Session = Depends(get_db)):
     hashed_password = get_password_hash(request.password)
     
     # 3. 새 User 객체 생성
-    #    [수정] nickname 필드에 request.username 값을 할당
     new_user = User(
         email=request.email,
         password=hashed_password,
-        nickname=request.username,  # 프론트의 'username'을 DB 'nickname' 필드에 매핑
+        nickname=request.username,  # 프론트의 'username' -> DB 'nickname' 매핑
         user_type=request.user_type
     )
     
@@ -80,22 +80,21 @@ def create_user(request: SignupRequest, db: Session = Depends(get_db)):
     try:
         db.add(new_user)
         db.commit()
-        db.refresh(new_user) # DB에서 생성된 ID 등을 다시 읽어옴
+        db.refresh(new_user)
     except Exception as e:
         db.rollback()
-        print(f"DB 오류 발생: {e}") # 서버 로그
+        print(f"DB 오류 발생: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="사용자 생성 중 서버 오류가 발생했습니다."
         )
     
-    # 5. 생성된 사용자 정보 반환 (UserPublic 스키마 사용, 비밀번호 제외)
+    # 5. 생성된 사용자 정보 반환
     return new_user
-# --- ▲▲▲ [신규] /signup 엔드포인트 완료 ▲▲▲ ---
 
 
-# 2. POST /login 엔드포인트 정의
-@router.post("/login", response_model=LoginResponse) 
+# --- ▼ [로그인 엔드포인트] ▼ ---
+@router.post("/login", response_model=LoginResponse)
 def login_user(request: LoginRequest, db: Session = Depends(get_db)):
     """
     사용자 로그인을 처리하고 인증에 성공하면 JWT 액세스 토큰을 반환합니다.
@@ -103,41 +102,34 @@ def login_user(request: LoginRequest, db: Session = Depends(get_db)):
     # 1. 이메일로 사용자 조회
     user = db.query(User).filter(User.email == request.email).first()
 
-    # 2. 비밀번호 검증 (verify_password 유틸리티 함수 사용)
+    # 2. 비밀번호 검증
     if not user or not verify_password(request.password, user.password):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, 
+            status_code=status.HTTP_401_UNAUTHORIZED,
             detail="이메일 또는 비밀번호가 올바르지 않습니다.",
-            headers={"WWW-Authenticate": "Bearer"}, 
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # 3. [수정] 인증 성공 시 JWT 토큰 생성
-    
-    # ▼▼▼▼▼ [ 여기가 핵심 수정 사항 ] ▼▼▼▼▼
-    # 토큰에 프론트엔드가 필요한 nickname과 user_type을 포함시킵니다.
+    # 3. 인증 성공 시 JWT 토큰 생성 Payload 구성
     access_token_data = {
         "sub": str(user.id),
-        "nickname": user.nickname,    # (User.nickname 필드)
-        "user_type": user.user_type   # (User.user_type 필드)
+        "nickname": user.nickname,
+        "user_type": user.user_type
     }
-    # ▲▲▲▲▲ [ 핵심 수정 완료 ] ▲▲▲▲▲
     
-    # 4. 설정된 유효 시간으로 토큰 생성
+    # 4. 토큰 생성
     access_token = create_access_token(
-        data=access_token_data, 
+        data=access_token_data,
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
 
-    # 5. 토큰 반환 (LoginResponse 스키마에 맞게)
+    # 5. 토큰 반환
     return LoginResponse(access_token=access_token, token_type="bearer")
 
 
-# --- ▼ [토큰 검증 및 사용자 정보 얻는 의존성 함수] ▼ ---
-# (이 함수는 예약 API 등 로그인 필요한 엔드포인트에서 사용)
-from fastapi.security import OAuth2PasswordBearer
-
-# [수정] tokenUrl은 /auth/login (라우터 prefix 포함)
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login") 
+# --- ▼ [토큰 검증 의존성 함수 (다른 라우터에서 사용)] ▼ ---
+# tokenUrl은 라우터 prefix를 포함한 전체 경로여야 합니다.
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
@@ -150,16 +142,10 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
         user_id: str = payload.get("sub")
         if user_id is None:
             raise credentials_exception
-            
-        # [참고] 토큰에서 다른 정보도 추출 가능 (필요한 경우)
-        # nickname: str = payload.get("nickname")
-        # user_type: str = payload.get("user_type")
-            
     except JWTError:
         raise credentials_exception
     
     user = db.query(User).filter(User.id == int(user_id)).first()
     if user is None:
         raise credentials_exception
-    return user # 현재 로그인된 User 모델 객체 반환
-# --- ▲ 의존성 함수 끝 ▲ ---
+    return user

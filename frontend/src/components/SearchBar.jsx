@@ -1,201 +1,160 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Search, Map as MapIcon, X } from 'lucide-react'; // X 아이콘 추가
+import { LocationModal, TagsModal, CharacterModal } from './SearchModals';
 
-/**
- * [수정됨] 검색 입력창, 선택된 태그(알약), 포커스 시 태그 드롭다운을 렌더링하는 UI 컴포넌트
- * (가상 스크롤/무한 스크롤 기능 추가)
- *
- * @param {object} props
- * @param {string} props.inputValue - 입력창에 표시될 현재 값
- * @param {function(string): void} props.onInputChange - 입력창 값이 변경될 때 호출될 함수
- * @param {function(): void} props.onSearchSubmit - 검색 버튼 클릭 또는 Enter 시 호출될 함수
- * @param {string[]} props.tagsToShow - (신규) 포커스 시 드롭다운에 표시할 태그 목록
- * @param {function(string): void} props.onTagClick - (신규) 태그 클릭 시 호출될 함수
- * @param {string[]} props.selectedTags - (신규) 현재 선택된 태그 목록 (알약)
- * @param {function(string): void} props.onRemoveTag - (신규) 태그 알약의 'x' 클릭 시 호출
- * @param {function(): void} props.onClearAllTags - (신규) 모든 태그 지우기 버튼 클릭 시 호출
- * @param {boolean} props.isFocused - (신규) 현재 컴포넌트가 포커스되었는지 여부
- * @param {function(): void} props.onFocus - (신규) 컴포넌트 포커스 시 호출될 함수
- */
-const SearchBar = ({ 
-    inputValue, 
-    onInputChange, 
-    onSearchSubmit, 
-    tagsToShow = [],
-    onTagClick,
-    selectedTags = [],
-    onRemoveTag,
-    onClearAllTags, // [신규] prop 추가
-    isFocused,
-    onFocus
-}) => {
+const SearchBar = ({ options, searchParams, onUpdateSearch, navigateTo }) => {
+    const [activeSection, setActiveSection] = useState(null);
+    const searchRef = useRef(null);
 
-    // --- ▼ [신규] 가상 스크롤/무한 스크롤을 위한 설정 ▼ ---
-    
-    // 한 번에 렌더링할 태그 수
-    const TAG_SLICE_SIZE = 50; 
-    
-    // 현재 화면에 보여줄 태그 개수를 관리하는 상태
-    const [visibleTagCount, setVisibleTagCount] = useState(TAG_SLICE_SIZE);
-
-    // [수정] useMemo를 사용해 필터링 계산을 최적화
-    // (props가 변경되지 않으면 이전에 계산된 값을 재사용)
-    const filteredTags = useMemo(() => {
-        return tagsToShow.filter(tag => 
-            tag.toLowerCase().includes(inputValue.toLowerCase()) &&
-            !selectedTags.includes(tag)
-        );
-    }, [tagsToShow, inputValue, selectedTags]);
-
-    // [신규] 필터링된 태그 목록이 변경되면(예: 검색어 입력), 
-    // 화면에 보여줄 태그 개수를 초기화
+    // 외부 클릭 시 모달 닫기
     useEffect(() => {
-        setVisibleTagCount(TAG_SLICE_SIZE);
-    }, [filteredTags]);
-
-    // [신규] 현재 실제로 렌더링할 태그 목록 (전체 목록에서 visibleTagCount만큼 자름)
-    const tagsToRender = filteredTags.slice(0, visibleTagCount);
-
-    // [신규] 더 로드할 태그가 남아있는지 여부
-    const hasMoreTags = filteredTags.length > visibleTagCount;
-
-    // [신규] 드롭다운 스크롤 이벤트 핸들러
-    const handleScroll = (e) => {
-        const { scrollHeight, scrollTop, clientHeight } = e.currentTarget;
-        const buffer = 50; // 하단에 50px 남았을 때 미리 로드
-
-        // 스크롤이 하단에 거의 도달했는지 확인
-        if (scrollHeight - scrollTop <= clientHeight + buffer) {
-            // 더 로드할 태그가 있다면,
-            if (hasMoreTags) {
-                // 보여줄 태그 개수를 50개(TAG_SLICE_SIZE) 늘림
-                setVisibleTagCount(count => count + TAG_SLICE_SIZE);
+        const handleClickOutside = (e) => {
+            if (searchRef.current && !searchRef.current.contains(e.target)) {
+                setActiveSection(null);
             }
-        }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    // 태그 토글 로직
+    const toggleTag = (tag) => {
+        const currentTags = searchParams.tags || [];
+        const newTags = currentTags.includes(tag) 
+            ? currentTags.filter(t => t !== tag) 
+            : [...currentTags, tag];
+        onUpdateSearch({ tags: newTags });
     };
-    // --- ▲ [신규] 가상 스크롤/무한 스크롤 설정 완료 ▲ ---
 
-
-    // 폼 제출 이벤트를 처리하는 핸들러
-    const handleSubmit = (e) => {
-        e.preventDefault(); // 페이지 새로고침 방지
-        onSearchSubmit();   // 부모(MainPage)의 검색 실행 함수 호출
+    // [신규] 항목 초기화 핸들러 (이벤트 전파 방지 필수)
+    const handleClear = (e, field) => {
+        e.stopPropagation(); // X 버튼 눌렀을 때 모달이 열리는 것 방지
+        if (field === 'location') onUpdateSearch({ location: '' });
+        if (field === 'tags') onUpdateSearch({ tags: [] });
+        if (field === 'character') onUpdateSearch({ character: null });
     };
 
     return (
-        // [수정] onFocus 이벤트를 감지하기 위해 wrapper div에 onFocus props 연결
-        <div className="search-bar-container space-y-4 relative" onFocus={onFocus}>
-            
-            {/* --- ▼ [수정] 레이아웃 구조 변경 ▼ --- */}
-            {/* [수정] form은 flex-wrap 제거, items-center 유지 */}
-            <form onSubmit={handleSubmit} className="flex items-center border border-gray-300 rounded-lg p-2 focus-within:ring-2 focus-within:ring-indigo-500 transition duration-200">
+        <div className="relative w-full max-w-4xl" ref={searchRef}>
+            {/* 메인 검색바 */}
+            <div className="flex items-center bg-white border border-gray-200 rounded-full shadow-sm hover:shadow-md transition-shadow divide-x divide-gray-100 h-[66px]">
                 
-                {/* [신규] 태그와 입력을 묶는 래퍼 div 추가 (flex-grow로 남은 공간 차지) */}
-                <div className="flex-grow flex flex-wrap items-center gap-y-1 gap-x-2 pr-2">
+                {/* 1. 여행지 섹션 */}
+                <div 
+                    onClick={() => setActiveSection(activeSection === 'location' ? null : 'location')}
+                    className={`group flex-1 pl-8 pr-4 cursor-pointer hover:bg-gray-100 rounded-l-full h-full flex flex-col justify-center relative ${activeSection === 'location' ? 'bg-gray-100' : ''}`}
+                >
+                    <div className="text-xs font-bold text-gray-800 mb-0.5">여행지</div>
+                    <div className={`text-sm truncate pr-6 ${searchParams.location ? 'text-gray-900 font-bold' : 'text-gray-400'}`}>
+                        {searchParams.location || '어디로 떠나시나요?'}
+                    </div>
                     
-                    {/* [수정] 태그 맵핑은 래퍼 div 안으로 이동 */}
-                    {selectedTags.map((tag) => (
-                        <span key={tag} className="flex items-center px-3 py-1 rounded-full bg-indigo-100 text-indigo-700 text-base font-semibold"> {/* [수정] text-sm -> text-base */}
-                            {tag}
-                            <button
-                                type="button"
-                                onClick={() => onRemoveTag(tag)} // 'X' 클릭 시 태그 제거
-                                className="ml-2 text-indigo-400 hover:text-indigo-600 focus:outline-none"
-                                aria-label={`Remove ${tag} filter`}
-                            >
-                                &times; {/* 'X' 아이콘 */}
-                            </button>
-                        </span>
-                    ))}
-
-                    {/* [수정] 입력창도 래퍼 div 안으로 이동 */}
-                    <input
-                        type="search"
-                        placeholder={selectedTags.length > 0 ? "태그 추가 또는 키워드 검색" : "여행지 또는 #태그로 검색"}
-                        value={inputValue}
-                        onChange={(e) => onInputChange(e.target.value)}
-                        // [수정] text-sm -> text-base (높이/폰트 크기 일치)
-                        className="flex-grow min-w-0 text-base focus:outline-none py-1" 
-                        // [수정] onFocus는 wrapper div로 이동
-                    />
+                    {/* X 버튼: 값이 있을 때만 표시 */}
+                    {searchParams.location && (
+                        <button 
+                            onClick={(e) => handleClear(e, 'location')}
+                            className="absolute right-4 top-1/2 transform -translate-y-1/2 p-1 bg-gray-200 rounded-full text-gray-600 hover:bg-gray-300 opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="지우기"
+                        >
+                            <X size={12} />
+                        </button>
+                    )}
                 </div>
 
-                {/* --- ▼ [신규] '모두 지우기' 버튼 ▼ --- */}
-                {/* 선택된 태그가 1개 이상일 때만 표시 */}
-                {selectedTags.length > 0 && (
-                    <button
-                        type="button"
-                        onClick={onClearAllTags} // 부모의 함수 호출
-                        className="flex-shrink-0 p-1 ml-2 rounded-lg bg-gray-200 text-gray-500 hover:bg-red-500 hover:text-white flex items-center justify-center transition-colors duration-200"
-                        aria-label="Remove all tags"
-                    >
-                        {/* X 아이콘 (검색 버튼과 크기 통일) */}
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-                        </svg>
-                    </button>
-                )}
-                {/* --- ▲ [신규] '모두 지우기' 버튼 완료 ▲ --- */}
-
-
-                {/* [수정] 검색 버튼 (form의 직계 자식으로 변경) */}
-                {/* [수정] p-1 (유지), 아이콘 w-5 h-5 -> w-6 h-6 (높이 일치) */}
-                <button 
-                    type="submit" 
-                    className="flex-shrink-0 bg-indigo-600 text-white p-1 rounded-lg hover:bg-indigo-700 transition duration-200 ml-2" // [수정] ml-2 추가
-                >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                </button>
-            </form>
-            {/* --- ▲ [수정 완료] ▲ --- */}
-
-
-            {/* --- ▼ [신규] 태그 드롭다운 목록 ▼ --- */}
-            {/* isFocused가 true일 때만 드롭다운 표시 */}
-            {isFocused && (
+                {/* 2. 태그 섹션 */}
                 <div 
-                    className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg z-20 max-h-60 overflow-y-auto"
-                    onScroll={handleScroll} // [신규] 스크롤 이벤트 리스너 추가
+                    onClick={() => setActiveSection(activeSection === 'tags' ? null : 'tags')}
+                    className={`group flex-1 px-6 cursor-pointer hover:bg-gray-100 h-full flex flex-col justify-center relative ${activeSection === 'tags' ? 'bg-gray-100' : ''}`}
                 >
-                    
-                    {/* [수정] filteredTags.length -> tagsToRender.length로 변경 
-                        (아니요, filteredTags.length가 맞습니다. 0개일 때를 확인해야 하므로) */}
-                    {filteredTags.length > 0 ? (
-                        <div className="flex flex-wrap gap-2 p-4">
-                            
-                            {/* [수정] filteredTags.map -> tagsToRender.map로 변경 */}
-                            {tagsToRender.map((tag) => (
-                                <button
-                                    key={tag}
-                                    type="button" // form 제출 방지
-                                    onClick={() => onTagClick(tag)} // 클릭 시 태그 선택
-                                    className="px-3 py-1.5 rounded-full bg-gray-100 text-gray-700 hover:bg-indigo-100 hover:text-indigo-700 transition duration-200 cursor-pointer"
-                                >
-                                    #{tag}
-                                </button>
-                            ))}
+                    <div className="text-xs font-bold text-gray-800 mb-0.5">취향 태그</div>
+                    <div className={`text-sm truncate pr-6 ${searchParams.tags && searchParams.tags.length > 0 ? 'text-gray-900 font-bold' : 'text-gray-400'}`}>
+                        {searchParams.tags && searchParams.tags.length > 0 
+                            ? `${searchParams.tags[0]} 외 ${searchParams.tags.length - 1}개` 
+                            : '어떤 여행을 원하세요?'}
+                    </div>
 
-                            {/* [신규] 더 로드할 태그가 있으면 로딩 중 표시 */}
-                            {hasMoreTags && (
-                                <div className="w-full text-center p-2 text-sm text-gray-500">
-                                    태그 불러오는 중...
-                                </div>
-                            )}
-
-                        </div>
-                    ) : (
-                        // 필터된 태그가 없을 때
-                        <div className="p-4 text-gray-500">
-                            {tagsToShow.length === 0 ? "태그 로딩 중..." : "일치하는 태그 없음"}
-                        </div>
+                    {/* X 버튼 */}
+                    {searchParams.tags && searchParams.tags.length > 0 && (
+                        <button 
+                            onClick={(e) => handleClear(e, 'tags')}
+                            className="absolute right-4 top-1/2 transform -translate-y-1/2 p-1 bg-gray-200 rounded-full text-gray-600 hover:bg-gray-300 opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="초기화"
+                        >
+                            <X size={12} />
+                        </button>
                     )}
+                </div>
 
+                {/* 3. 캐릭터 섹션 */}
+                <div 
+                    onClick={() => setActiveSection(activeSection === 'character' ? null : 'character')}
+                    className={`group flex-[1.2] px-6 cursor-pointer hover:bg-gray-100 h-full flex flex-col justify-center relative ${activeSection === 'character' ? 'bg-gray-100' : ''}`}
+                >
+                    <div className="text-xs font-bold text-gray-800 mb-0.5">동행 캐릭터</div>
+                    <div className={`text-sm truncate pr-6 ${searchParams.character ? 'text-gray-900 font-bold' : 'text-gray-400'}`}>
+                        {searchParams.character?.name || '누구와 함께할까요?'}
+                    </div>
+
+                    {/* X 버튼 */}
+                    {searchParams.character && (
+                        <button 
+                            onClick={(e) => handleClear(e, 'character')}
+                            className="absolute right-4 top-1/2 transform -translate-y-1/2 p-1 bg-gray-200 rounded-full text-gray-600 hover:bg-gray-300 opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="지우기"
+                        >
+                            <X size={12} />
+                        </button>
+                    )}
+                </div>
+
+                {/* 버튼 그룹 */}
+                <div className="pr-2 pl-2 flex items-center gap-2">
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); navigateTo('map'); }}
+                        className="p-3 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full transition-colors"
+                        title="지도로 보기"
+                    >
+                        <MapIcon size={20} />
+                    </button>
+                    
+                    {/* ▼▼▼ [수정된 부분] 돋보기 버튼 색상 변경 (#4f46e5) ▼▼▼ */}
+                    <button 
+                        className="w-12 h-12 bg-[#4f46e5] hover:bg-[#4338ca] text-white rounded-full flex items-center justify-center shadow-md transform active:scale-95 transition-all"
+                        onClick={() => setActiveSection(null)} 
+                    >
+                        <Search size={20} strokeWidth={3} />
+                    </button>
+                    {/* ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲ */}
+                </div>
+            </div>
+
+            {/* 모달 표시 영역 */}
+            {activeSection && (
+                <div className="absolute top-full mt-4 left-0 w-auto bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                    {activeSection === 'location' && (
+                        <LocationModal 
+                            locations={options.locations} 
+                            onSelect={(loc) => { onUpdateSearch({ location: loc }); setActiveSection('tags'); }} 
+                        />
+                    )}
+                    {activeSection === 'tags' && (
+                        <TagsModal 
+                            tags={options.tags} 
+                            selectedTags={searchParams.tags || []} 
+                            onToggle={toggleTag} 
+                        />
+                    )}
+                    {activeSection === 'character' && (
+                        <CharacterModal 
+                            characters={options.characters} 
+                            selectedChar={searchParams.character} 
+                            onSelect={(char) => { onUpdateSearch({ character: char }); setActiveSection(null); }} 
+                        />
+                    )}
                 </div>
             )}
-            {/* --- ▲ [신규] 태그 드롭다운 완료 ▲ --- */}
-
         </div>
     );
 };
 
 export default SearchBar;
-

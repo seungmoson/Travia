@@ -1,63 +1,81 @@
 import React from 'react';
+import { Heart, Star } from 'lucide-react';
 
 // 유효하지 않은 로컬 경로를 대체할 범용적인 플레이스홀더 URL
 const DEFAULT_IMAGE_URL = 'https://placehold.co/400x250/374151/ffffff?text=Image+Unavailable';
-// 백엔드 Seed 데이터에 사용된 더미 스토리지 도메인
 const DUMMY_STORAGE_DOMAIN = 'travia-storage.com';
 
-/**
- * 콘텐츠 목록의 단일 카드를 렌더링하고 클릭 시 상세 페이지로 이동시킵니다.
- */
 const ContentCard = ({ content, navigateTo }) => {
-    // 💡 개선된 이미지 URL 처리 로직
-    // 1. content.main_image_url이 유효한 HTTP/HTTPS URL이 아니거나
-    // 2. Seed 데이터에 사용된 더미 도메인(travia-storage.com)을 포함하는 경우
-    //    플레이스홀더를 사용합니다.
+    // 1. [안전장치] content가 없으면 렌더링하지 않음
+    if (!content) return null;
 
-    // ▼ [수정] 'http'로 시작하거나 '/' (로컬 public 경로)로 시작하는 경우 모두 유효 처리
-    const isUrlValid =
-        content.main_image_url &&
-        (content.main_image_url.startsWith('http') || content.main_image_url.startsWith('/')) &&
-        !content.main_image_url.includes(DUMMY_STORAGE_DOMAIN);
+    // 2. [데이터 정규화] Elasticsearch(_source) 또는 일반 DB 구조 처리
+    // content가 있어도 _source가 없을 수 있으므로 빈 객체 {}를 fallback으로 추가
+    const data = content._source || content || {};
 
-    const imageUrl = isUrlValid
-        ? content.main_image_url
-        : DEFAULT_IMAGE_URL;
+    // 3. ID 추출 (안전하게 접근)
+    const contentId = content.id || content._id || data.id;
+
+    // 4. 이미지 URL 추출 (옵셔널 체이닝 ?. 사용으로 에러 방지)
+    // data가 비어있어도 에러가 나지 않도록 ?. 연산자 사용
+    const mainImage = data?.image_url || data?.main_image_url;
+    
+    const isUrlValid = mainImage && 
+        (mainImage.startsWith('http') || mainImage.startsWith('/')) && 
+        !mainImage.includes(DUMMY_STORAGE_DOMAIN);
+
+    const imageUrl = isUrlValid ? mainImage : DEFAULT_IMAGE_URL;
 
     return (
-        <div
-            className="bg-white rounded-xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-2xl hover:translate-y-[-4px] cursor-pointer border border-gray-100"
-            // 🎯 이 부분은 이전에 'content.id'로 올바르게 수정되었습니다.
-            onClick={() => navigateTo('detail', content.id)}
+        <div 
+            className="group cursor-pointer bg-white rounded-xl border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
+            onClick={(e) => {
+                // e.stopPropagation(); // 필요시 주석 해제 (상위 이벤트 전파 방지)
+                navigateTo('detail', contentId);
+            }}
         >
-            <img
-                src={imageUrl}
-                alt={content.title}
-                className="w-full h-48 object-cover"
-                // onError 핸들러는 이제 로직에서 처리되므로 단순화하거나 제거할 수 있지만, 
-                // 최종 폴백(fallback)을 위해 유지합니다.
-                onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = DEFAULT_IMAGE_URL;
-                }}
-            />
+            {/* 이미지 영역 */}
+            <div className="relative aspect-[4/3] bg-gray-200 overflow-hidden">
+                <img 
+                    src={imageUrl} 
+                    alt={data?.title || "제목 없음"} 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = DEFAULT_IMAGE_URL;
+                    }}
+                />
+                <button className="absolute top-3 right-3 p-2 rounded-full hover:bg-white/20 text-white hover:text-rose-500 transition-colors">
+                    <Heart size={24} />
+                </button>
+                
+                {data?.status === 'Active' && (
+                    <div className="absolute top-3 left-3 px-2 py-1 bg-white/90 text-gray-800 text-xs font-bold rounded shadow-sm backdrop-blur-sm">
+                        예약 가능
+                    </div>
+                )}
+            </div>
+            
+            {/* 텍스트 정보 */}
             <div className="p-4">
-                <h3 className="text-xl font-bold text-gray-800 truncate">{content.title}</h3>
-                <p className="text-sm text-indigo-600 font-medium mt-1">{content.location || '국내 투어'}</p>
-                <p className="text-gray-600 text-sm mt-2 line-clamp-2">{content.description || '상세 설명 없음'}</p>
-                <div className="mt-3 flex justify-between items-center">
-                    <span className="text-lg font-extrabold text-green-600">{content.price ? `${content.price.toLocaleString()}원` : '문의'}</span>
-                    <button
-                        // 버튼 클릭 시도 동일한 navigateTo 호출 (Card 영역 클릭 유도)
-                        onClick={(e) => {
-                            e.stopPropagation(); // 카드 전체 클릭 이벤트와의 중복 방지
-                            // 🎯 이 부분도 'content.id'로 올바르게 수정되었습니다.
-                            navigateTo('detail', content.id);
-                        }}
-                        className="text-sm text-indigo-500 font-semibold hover:text-indigo-700 transition duration-150"
-                    >
-                        상세 보기 →
-                    </button>
+                <div className="flex justify-between items-start mb-1">
+                    <h3 className="font-bold text-gray-900 truncate text-lg flex-1 mr-2">
+                        {data?.title || "제목 없음"}
+                    </h3>
+                    <div className="flex items-center gap-1 text-sm flex-shrink-0">
+                        <Star size={14} className="fill-black text-black" /> 
+                        <span>{data?.rating || "4.8"}</span>
+                    </div>
+                </div>
+                
+                <p className="text-gray-500 text-sm mb-1">{data?.location || '대한민국'}</p>
+                <p className="text-gray-400 text-xs line-clamp-1 mb-3">{data?.description}</p>
+                
+                <div className="flex items-baseline gap-1 pt-2 border-t border-gray-50">
+                    <span className="font-bold text-lg text-gray-900">
+                        {data?.price ? `₩${Number(data.price).toLocaleString()}` : '가격 문의'}
+                    </span>
+                    <span className="text-gray-500 text-sm">/ 박</span>
                 </div>
             </div>
         </div>

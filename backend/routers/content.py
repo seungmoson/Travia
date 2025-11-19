@@ -1,151 +1,102 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func, or_, distinct
+from sqlalchemy import func, distinct
 from typing import List, Optional
-from datetime import datetime
-import random
 
-# --- ▼ [추가] Elasticsearch 클라이언트 import ▼ ---
+# Elasticsearch 설정
 from elasticsearch import Elasticsearch
-# --- ▲ [추가] ▲ ---
 
 from database import get_db
-from models import Content, GuideProfile, User, ContentImage, Booking, Review, Tag, ContentTag
+from models import (
+    Content, GuideProfile, User, ContentImage, Booking, Review, Tag, ContentTag,
+    AiCharacter, AiCharacterDefinitionTag, GuideReview
+)
 from schemas import (
     ContentListSchema, ContentDetailSchema, ReviewSchema, RelatedContentSchema,
-    ContentListResponse,
-    MapContentSchema 
+    ContentListResponse, MapContentSchema
 )
 
-# --- ▼ [추가] Elasticsearch 클라이언트 인스턴스 생성 ▼ ---
-# (실제 프로덕션에서는 FastAPI의 Depends 등을 이용해 관리하는 것이 좋습니다)
+# Elasticsearch 연결 시도
 try:
-    es = Elasticsearch(
-        "http://localhost:9200",
-        # (필요시) 인증 정보 추가
-        # basic_auth=("elastic", "YOUR_PASSWORD") 
-    )
-    es.info() # 연결 테스트
+    es = Elasticsearch("http://localhost:9200")
+    es.info()
     print("Elasticsearch 클라이언트 연결 성공")
 except Exception as e:
-    print(f"Elasticsearch 연결 실패: {e}")
-    es = None # 연결 실패 시 es를 None으로 설정
-# --- ▲ [추가] ▲ ---
+    print(f"Elasticsearch 연결 실패 (DB 검색만 사용됩니다): {e}")
+    es = None
+
+router = APIRouter(tags=["content"])
+
+# 1. [지역 목록 조회]
+@router.get("/locations", summary="등록된 컨텐츠들의 지역 목록 조회")
+def get_locations(db: Session = Depends(get_db)):
+    try:
+        locations = db.query(distinct(Content.location))\
+                      .filter(Content.status == 'Active')\
+                      .all()
+        result = [loc[0] for loc in locations if loc[0]]
+        return result
+    except Exception as e:
+        print(f"Error fetching locations: {e}")
+        return []
 
 
-# 1. APIRouter 인스턴스 생성
-router = APIRouter(
-    tags=["content"]
-)
-
-# 2. GET /list 엔드포인트 정의 (MainPage용)
+# 2. [콘텐츠 목록 조회] - (최적화됨)
 @router.get("/list", response_model=ContentListResponse)
 def get_content_list(
     db: Session = Depends(get_db),
     page: int = Query(1, ge=1, description="페이지 번호"),
-    per_page: int = Query(9, ge=1, le=50, description="페이지당 콘텐츠 개수 (기본 9개)"),
-    search_terms: Optional[List[str]] = Query(None, alias="q", description="검색어 목록 (제목, 태그, 리뷰 포함)") # 설명 수정
+    per_page: int = Query(9, ge=1, le=50, description="페이지당 콘텐츠 개수"),
+    search_terms: Optional[List[str]] = Query(None, alias="q", description="텍스트 검색어"),
+    location: Optional[str] = Query(None, description="지역 필터"),
+    tags: Optional[str] = Query(None, description="태그 필터"),
+    style: Optional[str] = Query(None, description="캐릭터 스타일 (예: 모험가)")
 ):
-    """
-    [수정됨]
-    - 검색어(q=)가 있으면 Elasticsearch에서 가중치(Boost) 검색을 수행합니다.
-    - 검색어가 없으면 DB에서 'Active' 콘텐츠의 목록을 페이지네이션하여 조회합니다.
-    """
-    
-    # --- ▼ [수정] 1. 검색어가 있는 경우: Elasticsearch로 검색 ▼ ---
-    if search_terms:
-        if es is None:
-            raise HTTPException(status_code=503, detail="검색 엔진(Elasticsearch)에 연결할 수 없습니다.")
-
-        # 1-1. 검색어 리스트를 하나의 공백 구분 문자열로 합침 (예: "부산 맛집")
-        query_string = " ".join(search_terms)
-
-        # 1-2. Elasticsearch 가중치(Boost) 쿼리
-        # title (nori 분석) : 3배
-        # all_tags (keyword) : 2배
-        # all_reviews_text (nori 분석): 1.5배 (신규 추가)
-        # description (nori 분석) : 1배 (기본 가중치)
-        es_query = {
-            "query": {
-                "bool": {
-                    "should": [
-                        { "match": { "title": { "query": query_string, "boost": 3 } } },
-                        { "terms": { "all_tags": search_terms, "boost": 2 } },
-                        
-                        # --- ▼ [추가된 로직] all_reviews_text 검색 ▼ ---
-                        { "match": { "all_reviews_text": { "query": query_string, "boost": 1.5 } } },
-                        # --- ▲ [추가된 로직] ▲ ---
-                        
-                        { "match": { "description": { "query": query_string, "boost": 1 } } }
-                    ],
-                    # 검색어가 title/tags/reviews/desc 중 하나라도 있어야 함
-                    "minimum_should_match": 1 
-                }
-            },
-            "from": (page - 1) * per_page, # 페이지네이션 시작 위치
-            "size": per_page              # 페이지당 개수
-        }
-
+    # --- A. Elasticsearch 검색 (텍스트 검색어 q가 있을 때만) ---
+    if search_terms and es:
         try:
-            # 1-3. Elasticsearch에 검색 요청
+            query_string = " ".join(search_terms)
+            es_query = {
+                "query": {
+                    "bool": {
+                        "should": [
+                            { "match": { "title": { "query": query_string, "boost": 3 } } },
+                            { "terms": { "all_tags": search_terms, "boost": 2 } },
+                            { "match": { "all_reviews_text": { "query": query_string, "boost": 1.5 } } },
+                            { "match": { "description": { "query": query_string, "boost": 1 } } }
+                        ],
+                        "minimum_should_match": 1
+                    }
+                },
+                "from": (page - 1) * per_page,
+                "size": per_page
+            }
+            
             response = es.search(index="contents", body=es_query)
-
+            total_count = response['hits']['total']['value']
+            
+            if total_count > 0:
+                hits = response['hits']['hits']
+                content_list = []
+                for hit in hits:
+                    source = hit['_source']
+                    content_list.append(ContentListSchema(
+                        id=source.get('id'),
+                        title=source.get('title'),
+                        description=source.get('description', '설명 없음'),
+                        price=source.get('price', 0),
+                        location=source.get('location', '미정'),
+                        guide_nickname=source.get('guide_nickname', '정보 없음'),
+                        main_image_url=source.get('image_url') or source.get('main_image_url'),
+                        guide_id=source.get('guide_id')
+                    ))
+                return ContentListResponse(contents=content_list, total_count=total_count)
         except Exception as e:
-            print(f"Elasticsearch search error: {e}")
-            raise HTTPException(status_code=500, detail="검색 엔진 오류가 발생했습니다.")
+            print(f"ES Search Error: {e}")
+            # ES 실패 시 DB 조회로 넘어감
 
-        # 1-4. Elasticsearch 결과 처리
-        total_count = response['hits']['total']['value']
-        if total_count == 0:
-            return ContentListResponse(contents=[], total_count=0)
-
-        hits = response['hits']['hits']
-        content_list = []
-
-        # 1-5. ES 결과(_source)를 ContentListSchema로 변환
-        # (★_source에 guide_nickname, main_image_url, id 등이 이미 포함되어 있음)
-        for hit in hits:
-            source = hit['_source']
-            try:
-                # Logstash에서 guide_id를 포함했는지 확인하고, 없으면 None 처리
-                guide_id_from_es = source.get('guide_id') if 'guide_id' in source else (db.query(Content.guide_id).filter(Content.id == source.get('id')).scalar())
-
-                schema_instance = ContentListSchema(
-                    id=source.get('id'),
-                    title=source.get('title'),
-                    description=source.get('description', '설명 없음'),
-                    price=source.get('price', 0),
-                    location=source.get('location', '미정'),
-                    guide_nickname=source.get('guide_nickname', '정보 없음'), 
-                    main_image_url=source.get('main_image_url'), # None일 수도 있음
-                    guide_id=guide_id_from_es
-                )
-                content_list.append(schema_instance)
-            except Exception as e:
-                # Pydantic 유효성 검사 실패 등
-                print(f"Error converting ES doc ID {source.get('id')} to schema: {e}")
-
-        # 1-6. ES 검색 결과 반환
-        return ContentListResponse(
-            contents=content_list,
-            total_count=total_count
-        )
-    # --- ▲ [수정] Elasticsearch 검색 로직 완료 ▲ ---
-    
-    
-    # --- ▼ [기존 로직] 2. 검색어가 없는 경우: DB에서 전체 목록 조회 ▼ ---
-    # (if search_terms: 가 False일 때 이 코드가 실행됩니다)
-    
-    print("검색어가 없어 DB에서 조회합니다.") # (디버깅용 로그)
-
-    # 2-1. 전체 개수 쿼리 (DB)
-    total_count_query = db.query(func.count(distinct(Content.id))).filter(Content.status == "Active")
-    total_count = total_count_query.scalar() or 0
-
-    if total_count == 0:
-        return ContentListResponse(contents=[], total_count=0)
-
-    # 2-2. 실제 목록 쿼리 (DB)
+    # --- B. DB 조회 (필터링 적용) ---
+    # 1. 기본 쿼리 구성 (Content + GuideProfile + User + Image)
     results_query = db.query(
         Content.id,
         Content.title,
@@ -166,67 +117,67 @@ def get_content_list(
         Content.status == "Active"
     )
 
-    results = results_query.distinct().order_by(
-        Content.created_at.desc()
-    ).offset(
-        (page - 1) * per_page
-    ).limit(
-        per_page
-    ).all()
+    # 2. [지역 필터]
+    if location:
+        results_query = results_query.filter(Content.location.like(f"%{location}%"))
 
-    # 2-3. 스키마 변환 (DB)
+    # 3. [캐릭터/스타일 필터] - (최적화 완료)
+    if style:
+        # GuideProfile에 미리 저장된 '대표 캐릭터(ai_character_id_as_guide)'를 바로 조인합니다.
+        # 성능이 매우 빠르고 로직이 단순합니다.
+        results_query = results_query.join(
+            AiCharacter, GuideProfile.ai_character_id_as_guide == AiCharacter.id
+        ).filter(
+            AiCharacter.name == style
+        )
+
+    # 4. [태그 필터]
+    if tags:
+        tag_list = tags.split(',')
+        results_query = results_query.join(ContentTag).join(Tag).filter(
+            Tag.name.in_([t.strip() for t in tag_list])
+        )
+
+    # 5. 결과 조회
+    results_query = results_query.distinct()
+    total_count = results_query.count()
+    
+    results = results_query.order_by(Content.created_at.desc())\
+                           .offset((page - 1) * per_page)\
+                           .limit(per_page)\
+                           .all()
+
+    # 6. 변환
     content_list = []
     for row in results:
-        try:
-            schema_instance = ContentListSchema(
-                id=row.id,
-                title=row.title,
-                description=row.description if row.description else "설명 없음",
-                price=row.price if row.price is not None else 0,
-                location=row.location if row.location else "미정",
-                guide_nickname=row.guide_nickname if row.guide_nickname else "정보 없음",
-                main_image_url=row.main_image_url,
-                guide_id=row.guide_id
-            )
-            content_list.append(schema_instance)
-        except Exception as e:
-            print(f"Error converting content ID {row.id} to schema: {e}")
+        content_list.append(ContentListSchema(
+            id=row.id,
+            title=row.title,
+            description=row.description if row.description else "설명 없음",
+            price=row.price if row.price is not None else 0,
+            location=row.location if row.location else "미정",
+            guide_nickname=row.guide_nickname if row.guide_nickname else "정보 없음",
+            main_image_url=row.main_image_url,
+            guide_id=row.guide_id
+        ))
 
-    # 2-4. DB 조회 결과 반환
     return ContentListResponse(
         contents=content_list,
         total_count=total_count
     )
-# --- ▲ [수정 완료] ▲ ---
 
 
-# --- ▼ [수정] 지도 데이터용 엔드포인트 (평균 별점 계산 포함) ▼ ---
-# (이하 코드는 변경 없음)
+# 3. [지도 데이터 조회]
 @router.get("/map-data", response_model=List[MapContentSchema])
 def get_map_content_by_area(
-    area: Optional[str] = Query(None, description="GeoJSON의 'sggnm' (예: 해운대구). 생략 시 전체 반환"),
+    area: Optional[str] = Query(None),
     db: Session = Depends(get_db)
 ):
-    """
-    [지도 전용] 특정 지역(area) 또는 '전체' 콘텐츠 목록을 지도 마커 및 사이드바용으로 반환합니다.
-    - main_image_url, description, price 등 사이드바에 필요한 데이터를 포함합니다.
-    - [수정] N+1 문제를 피하면서 평균 별점(rating)을 계산합니다.
-    """
-    
-    # 1. 기본 쿼리: [수정] 평균 별점(avg_rating)을 계산하는 서브쿼리 JOIN
-    
-    # 1-1. [신규] 콘텐츠별 평균 별점을 계산하는 서브쿼리 생성
-    # (ContentDetail의 로직을 가져와서 서브쿼리 형태로 변경)
     avg_rating_subquery = db.query(
         Booking.content_id,
         func.avg(Review.rating).label("avg_rating")
-    ).join(
-        Review, Booking.id == Review.booking_id
-    ).group_by(
-        Booking.content_id
-    ).subquery() # 👈 서브쿼리로 만듭니다.
+    ).join(Review, Booking.id == Review.booking_id).group_by(Booking.content_id).subquery()
 
-    # 1-2. 메인 쿼리 (Content)
     query = db.query(
         Content.id,
         Content.title,
@@ -236,13 +187,10 @@ def get_map_content_by_area(
         Content.description,
         Content.price,
         ContentImage.image_url.label("main_image_url"),
-        # [신규] 서브쿼리에서 계산된 avg_rating 값을 'rating' 컬럼으로 선택
-        avg_rating_subquery.c.avg_rating.label("rating") 
+        avg_rating_subquery.c.avg_rating.label("rating")
     ).outerjoin(
-        # [신규] 메인 이미지 조인
         ContentImage, (Content.id == ContentImage.contents_id) & (ContentImage.is_main == True)
     ).outerjoin(
-        # [신규] 평균 별점 서브쿼리 조인
         avg_rating_subquery, Content.id == avg_rating_subquery.c.content_id
     ).filter(
         Content.status == "Active",
@@ -250,83 +198,47 @@ def get_map_content_by_area(
         Content.longitude.isnot(None)
     )
     
-    # 2. area 파라미터가 '주어진 경우에만' 위치 필터링을 추가
     if area:
-        query = query.filter(Content.location == area) 
+        query = query.filter(Content.location == area)
     
-    # 3. 쿼리 실행
     results = query.all()
     
-    if not results:
-        return []
-    
-    # 4. [수정] 스키마 수동 변환
-    # 쿼리 결과(Row 객체 리스트)를 MapContentSchema 리스트로 변환
     map_contents = []
     for row in results:
-        try:
-            # [수정] row.rating (서브쿼리 결과)이 None일 경우 0.0으로 처리
-            calculated_rating = float(row.rating) if row.rating is not None else 0.0
-            
-            map_contents.append(MapContentSchema(
-                id=row.id,
-                title=row.title,
-                location=row.location,
-                latitude=row.latitude,
-                longitude=row.longitude,
-                main_image_url=row.main_image_url,
-                description=row.description,
-                price=row.price,
-                rating=calculated_rating # 👈 [수정] 계산된 별점 값을 할당
-            ))
-        except Exception as e:
-            print(f"Error converting map content ID {row.id} to schema: {e}")
-            
+        calculated_rating = float(row.rating) if row.rating is not None else 0.0
+        map_contents.append(MapContentSchema(
+            id=row.id,
+            title=row.title,
+            location=row.location,
+            latitude=row.latitude,
+            longitude=row.longitude,
+            main_image_url=row.main_image_url,
+            description=row.description,
+            price=row.price,
+            rating=calculated_rating
+        ))
     return map_contents
-# --- ▲ [수정 완료] ▲ ---
 
 
-# --- ▼ 인기 태그 목록 엔드포인트 (변경 없음) ▼ ---
+# 4. [인기 태그 조회]
 @router.get("/tags", response_model=List[str])
-def get_popular_tags(
-    db: Session = Depends(get_db) 
-):
-    """
-    [수정] 가장 많이 사용된 태그(Popular Tags) '전체' 목록을 반환합니다.
-    (limit 파라미터 제거)
-    """
-    query = db.query(
-        Tag.name 
-    ).join(
-        ContentTag, Tag.id == ContentTag.tag_id
-    ).group_by(
-        Tag.id, Tag.name
-    ).order_by(
-        func.count(ContentTag.contents_id).desc()
-    )
-    
-    results = query.all() 
-    tags = [row[0] for row in results]
-    return tags
-# --- ▲ 엔드포인트 완료 ▲ ---
+def get_popular_tags(db: Session = Depends(get_db)):
+    query = db.query(Tag.name).join(ContentTag, Tag.id == ContentTag.tag_id)\
+              .group_by(Tag.id, Tag.name).order_by(func.count(ContentTag.contents_id).desc())
+    results = query.all()
+    return [row[0] for row in results]
 
 
-# 3. GET /{content_id} 상세 조회 엔드포인트 (DetailPage용, 변경 없음)
+# 5. [상세 조회]
 @router.get("/{content_id}", response_model=ContentDetailSchema)
 def get_content_detail(
     content_id: int,
-    reviews_page: int = Query(1, ge=1, description="리뷰 목록 페이지 번호"),
-    reviews_per_page: int = Query(5, ge=1, le=50, description="페이지당 리뷰 개수"),
-    related_page: int = Query(1, ge=1, description="관련 콘텐츠 목록 페이지 번호"),
-    related_per_page: int = Query(4, ge=1, le=20, description="페이지당 관련 콘텐츠 개수"),
+    reviews_page: int = Query(1, ge=1),
+    reviews_per_page: int = Query(5, ge=1),
+    related_page: int = Query(1, ge=1),
+    related_per_page: int = Query(4, ge=1),
     db: Session = Depends(get_db)
 ):
-    """
-    특정 ID의 콘텐츠 상세 정보를 실제 DB에서 쿼리하여 반환합니다.
-    **리뷰 목록 및 관련 콘텐츠 목록은 페이지네이션 처리됩니다.**
-    """
-
-    # 1. 기본 콘텐츠 상세 정보 조회
     content = db.query(Content).options(
         joinedload(Content.guide).joinedload(GuideProfile.user)
     ).filter(
@@ -334,11 +246,9 @@ def get_content_detail(
         Content.status == "Active"
     ).first()
 
-    # 2. 콘텐츠가 없으면 404
     if not content:
-        raise HTTPException(status_code=404, detail="해당 ID의 콘텐츠를 찾을 수 없습니다.")
+        raise HTTPException(status_code=404, detail="Content not found")
 
-    # 3. 가이드 정보 추출
     guide_name = "공식 가이드"
     guide_nickname = "정보 없음"
     guide_avg_rating = None
@@ -347,129 +257,60 @@ def get_content_detail(
         guide_nickname = content.guide.user.nickname
         guide_avg_rating = content.guide.avg_rating
 
-    # 4. 메인 이미지
     main_image_url = db.query(ContentImage.image_url).filter(
         ContentImage.contents_id == content_id,
         ContentImage.is_main == True
     ).scalar()
 
-    # 5. 리뷰 쿼리 (페이지네이션 적용)
-    # 5-1. 전체 리뷰 개수 및 평균 평점 계산
     content_rating_stats = db.query(
         func.avg(Review.rating).label("avg_rating"),
         func.count(Review.id).label("total_reviews_count")
-    ).join(
-        Booking, Review.booking_id == Booking.id
-    ).filter(
-        Booking.content_id == content_id
-    ).first()
+    ).join(Booking, Review.booking_id == Booking.id).filter(Booking.content_id == content_id).first()
 
     total_reviews_count = content_rating_stats.total_reviews_count if content_rating_stats else 0
-    avg_content_rating = round(float(content_rating_stats.avg_rating), 1) if content_rating_stats and content_rating_stats.avg_rating is not None else 0.0 # [수정] 4.0 -> 0.0
+    avg_content_rating = round(float(content_rating_stats.avg_rating), 1) if content_rating_stats and content_rating_stats.avg_rating else 0.0
 
-    # 5-2. 요청된 페이지의 리뷰 목록 쿼리
-    review_results = db.query(Review).options(
-        joinedload(Review.reviewer)
-    ).join(
-        Booking, Review.booking_id == Booking.id
-    ).filter(
-        Booking.content_id == content_id
-    ).order_by(
-        Review.created_at.desc()
-    ).offset(
-        (reviews_page - 1) * reviews_per_page
-    ).limit(
-        reviews_per_page
-    ).all()
+    review_results = db.query(Review).options(joinedload(Review.reviewer))\
+        .join(Booking, Review.booking_id == Booking.id)\
+        .filter(Booking.content_id == content_id)\
+        .order_by(Review.created_at.desc())\
+        .offset((reviews_page - 1) * reviews_per_page).limit(reviews_per_page).all()
 
-    # ReviewSchema 변환
     reviews_data = []
     for review in review_results:
-        try:
-            reviews_data.append(ReviewSchema(
-                id=review.id,
-                user=review.reviewer.nickname if review.reviewer else "알 수 없음", 
-                rating=float(review.rating),
-                text=review.text,
-                created_at=review.created_at
-            ))
-        except Exception as e:
-            print(f"Error converting review ID {review.id} to schema: {e}")
+        reviews_data.append(ReviewSchema(
+            id=review.id,
+            user=review.reviewer.nickname if review.reviewer else "알 수 없음",
+            rating=float(review.rating),
+            text=review.text,
+            created_at=review.created_at
+        ))
 
-    # 6. 관련 콘텐츠 쿼리 (페이지네이션 적용)
-    # 6-1. 전체 관련 콘텐츠 개수 계산
     total_related_count = db.query(func.count(Content.id)).filter(
-        Content.id != content_id,
-        Content.status == "Active"
+        Content.id != content_id, Content.status == "Active"
     ).scalar() or 0
 
-    # 6-2. 요청된 페이지의 관련 콘텐츠 목록 쿼리
-    related_results = db.query(
-        Content.id,
-        Content.title,
-        Content.price,
-        ContentImage.image_url.label("imageUrl")
-    ).outerjoin(
-        ContentImage, (Content.id == ContentImage.contents_id) & (ContentImage.is_main == True)
-    ).filter(
-        Content.id != content_id,
-        Content.status == "Active"
-    ).order_by(
-        Content.created_at.desc()
-    ).offset(
-        (related_page - 1) * related_per_page
-    ).limit(
-        related_per_page
-    ).all()
+    related_results = db.query(Content.id, Content.title, Content.price, ContentImage.image_url.label("imageUrl"))\
+        .outerjoin(ContentImage, (Content.id == ContentImage.contents_id) & (ContentImage.is_main == True))\
+        .filter(Content.id != content_id, Content.status == "Active")\
+        .order_by(Content.created_at.desc())\
+        .offset((related_page - 1) * related_per_page).limit(related_per_page).all()
 
-    # RelatedContentSchema 변환
     related_contents_data = []
     for r in related_results:
-        try:
-            # [수정] 관련 콘텐츠도 임시 평점 대신, 실제 평점을 계산해야 하지만
-            # N+1 문제가 심각하므로, 여기서는 0점으로 처리 (또는 임시 평점 유지)
-            related_contents_data.append(RelatedContentSchema(
-                id=r.id,
-                title=r.title,
-                price=f"{r.price:,}" if r.price is not None else "문의",
-                rating=0.0, # [수정] 임시 평점 -> 0.0
-                time="2시간 소요", # 임시 시간
-                imageUrl=r.imageUrl
-            ))
-        except Exception as e:
-            print(f"Error converting related content ID {r.id} to schema: {e}")
+        related_contents_data.append(RelatedContentSchema(
+            id=r.id, title=r.title, price=f"{r.price:,}" if r.price else "문의",
+            rating=0.0, time="2시간 소요", imageUrl=r.imageUrl
+        ))
 
-    # 7. 실제 태그 쿼리 (Tags가 없는 경우를 대비)
-    tag_results = db.query(Tag).join(
-        ContentTag, Tag.id == ContentTag.tag_id
-    ).filter(
-        ContentTag.contents_id == content_id
-    ).all()
-    
-    tags_data = tag_results
+    tags_data = db.query(Tag).join(ContentTag, Tag.id == ContentTag.tag_id).filter(ContentTag.contents_id == content_id).all()
 
-    # 9. 최종 데이터 조합
-    try:
-        return ContentDetailSchema(
-            id=content.id,
-            title=content.title,
-            description=content.description if content.description else "설명 없음",
-            price=content.price if content.price is not None else 0,
-            location=content.location if content.location else "미정",
-            created_at=content.created_at,
-            status=content.status,
-            main_image_url=main_image_url,
-            guide_name=guide_name,
-            guide_nickname=guide_nickname,
-            guide_avg_rating=guide_avg_rating,
-            guide_id=content.guide_id,
-            reviews=reviews_data,
-            related_contents=related_contents_data,
-            tags=tags_data,
-            rating=avg_content_rating,
-            review_count=total_reviews_count,
-            total_related_count=total_related_count
-        )
-    except Exception as e:
-        print(f"Error creating ContentDetailSchema for content ID {content_id}: {e}")
-        raise HTTPException(status_code=500, detail="데이터 변환 중 오류가 발생했습니다.")
+    return ContentDetailSchema(
+        id=content.id, title=content.title, description=content.description,
+        price=content.price if content.price else 0, location=content.location if content.location else "미정",
+        created_at=content.created_at, status=content.status,
+        main_image_url=main_image_url, guide_name=guide_name, guide_nickname=guide_nickname,
+        guide_avg_rating=guide_avg_rating, guide_id=content.guide_id,
+        reviews=reviews_data, related_contents=related_contents_data, tags=tags_data,
+        rating=avg_content_rating, review_count=total_reviews_count, total_related_count=total_related_count
+    )
