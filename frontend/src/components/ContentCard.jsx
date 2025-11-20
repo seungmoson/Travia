@@ -75,7 +75,6 @@ const ContentCard = ({ content, navigateTo }) => {
                     <span className="font-bold text-lg text-gray-900">
                         {data?.price ? `₩${Number(data.price).toLocaleString()}` : '가격 문의'}
                     </span>
-                    <span className="text-gray-500 text-sm">/ 박</span>
                 </div>
             </div>
         </div>

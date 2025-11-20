@@ -41,7 +41,7 @@ def get_locations(db: Session = Depends(get_db)):
         return []
 
 
-# 2. [콘텐츠 목록 조회] - (최적화됨)
+# 2. [콘텐츠 목록 조회] - (수정됨: GuideProfile.users_id 적용)
 @router.get("/list", response_model=ContentListResponse)
 def get_content_list(
     db: Session = Depends(get_db),
@@ -52,7 +52,25 @@ def get_content_list(
     tags: Optional[str] = Query(None, description="태그 필터"),
     style: Optional[str] = Query(None, description="캐릭터 스타일 (예: 모험가)")
 ):
-    # --- A. Elasticsearch 검색 (텍스트 검색어 q가 있을 때만) ---
+    # 1. 기본 쿼리 생성
+    results_query = db.query(
+        Content.id,
+        Content.title,
+        Content.description,
+        Content.price,
+        Content.location,
+        Content.created_at,
+        Content.guide_id,
+        User.nickname.label("guide_nickname"),
+        ContentImage.image_url.label("main_image_url")
+    ).select_from(Content)\
+    .outerjoin(GuideProfile, Content.guide_id == GuideProfile.users_id)\
+    .outerjoin(User, GuideProfile.users_id == User.id)\
+    .outerjoin(ContentImage, (Content.id == ContentImage.contents_id) & (ContentImage.is_main == True))\
+    .filter(Content.status == 'Active')
+    # ▲ 위 두 줄에서 user_id -> users_id 로 수정했습니다.
+
+    # 2. Elasticsearch 검색
     if search_terms and es:
         try:
             query_string = " ".join(search_terms)
@@ -68,77 +86,55 @@ def get_content_list(
                         "minimum_should_match": 1
                     }
                 },
-                "from": (page - 1) * per_page,
-                "size": per_page
+                "_source": ["id"],
+                "size": 1000 
             }
             
             response = es.search(index="contents", body=es_query)
-            total_count = response['hits']['total']['value']
+            searched_ids = [hit['_source']['id'] for hit in response['hits']['hits']]
             
-            if total_count > 0:
-                hits = response['hits']['hits']
-                content_list = []
-                for hit in hits:
-                    source = hit['_source']
-                    content_list.append(ContentListSchema(
-                        id=source.get('id'),
-                        title=source.get('title'),
-                        description=source.get('description', '설명 없음'),
-                        price=source.get('price', 0),
-                        location=source.get('location', '미정'),
-                        guide_nickname=source.get('guide_nickname', '정보 없음'),
-                        main_image_url=source.get('image_url') or source.get('main_image_url'),
-                        guide_id=source.get('guide_id')
-                    ))
-                return ContentListResponse(contents=content_list, total_count=total_count)
+            if searched_ids:
+                results_query = results_query.filter(Content.id.in_(searched_ids))
+            else:
+                results_query = results_query.filter(Content.id == -1)
+
         except Exception as e:
-            print(f"ES Search Error: {e}")
-            # ES 실패 시 DB 조회로 넘어감
+            print(f"ES 검색 중 오류 발생 (DB 검색으로 전환): {e}")
+            for term in search_terms:
+                pattern = f"%{term}%"
+                results_query = results_query.filter(
+                    (Content.title.ilike(pattern)) | 
+                    (Content.description.ilike(pattern))
+                )
+    
+    elif search_terms:
+        for term in search_terms:
+            pattern = f"%{term}%"
+            results_query = results_query.filter(
+                (Content.title.ilike(pattern)) | 
+                (Content.description.ilike(pattern))
+            )
 
-    # --- B. DB 조회 (필터링 적용) ---
-    # 1. 기본 쿼리 구성 (Content + GuideProfile + User + Image)
-    results_query = db.query(
-        Content.id,
-        Content.title,
-        Content.description,
-        Content.price,
-        Content.location,
-        User.nickname.label("guide_nickname"),
-        ContentImage.image_url.label("main_image_url"),
-        Content.guide_id,
-        Content.created_at
-    ).join(
-        GuideProfile, Content.guide_id == GuideProfile.users_id
-    ).join(
-        User, GuideProfile.users_id == User.id
-    ).outerjoin(
-        ContentImage, (Content.id == ContentImage.contents_id) & (ContentImage.is_main == True)
-    ).filter(
-        Content.status == "Active"
-    )
-
-    # 2. [지역 필터]
+    # 3. [지역 필터]
     if location:
-        results_query = results_query.filter(Content.location.like(f"%{location}%"))
+        results_query = results_query.filter(Content.location == location)
 
-    # 3. [캐릭터/스타일 필터] - (최적화 완료)
+    # 4. [스타일(캐릭터) 필터]
     if style:
-        # GuideProfile에 미리 저장된 '대표 캐릭터(ai_character_id_as_guide)'를 바로 조인합니다.
-        # 성능이 매우 빠르고 로직이 단순합니다.
         results_query = results_query.join(
             AiCharacter, GuideProfile.ai_character_id_as_guide == AiCharacter.id
         ).filter(
             AiCharacter.name == style
         )
 
-    # 4. [태그 필터]
+    # 5. [태그 필터]
     if tags:
         tag_list = tags.split(',')
         results_query = results_query.join(ContentTag).join(Tag).filter(
             Tag.name.in_([t.strip() for t in tag_list])
         )
 
-    # 5. 결과 조회
+    # 6. 결과 조회 및 페이징
     results_query = results_query.distinct()
     total_count = results_query.count()
     
@@ -147,7 +143,7 @@ def get_content_list(
                            .limit(per_page)\
                            .all()
 
-    # 6. 변환
+    # 7. 변환
     content_list = []
     for row in results:
         content_list.append(ContentListSchema(

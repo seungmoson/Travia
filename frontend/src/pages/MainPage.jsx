@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 // 파일 구조에 맞춘 정확한 Import 경로
-import SearchBar from '../components/SearchBar';       
-import ContentList from '../components/ContentList';   
+import SearchBar from '../components/SearchBar';
+import ContentList from '../components/ContentList';
 
 const API_BASE_URL = 'http://localhost:8000';
 const CONTENTS_PER_PAGE = 9;
@@ -19,11 +19,11 @@ const MainPage = ({ user, navigateTo }) => {
     const [hasMore, setHasMore] = useState(true);
     const observerRef = useRef(null);
 
-    // 검색 관련 상태 (여행지, 태그, 캐릭터)
-    const [searchParams, setSearchParams] = useState({ location: '', tags: [], character: null });
+    // 검색 관련 상태 (여행지, 태그, 캐릭터, 검색어)
+    const [searchParams, setSearchParams] = useState({ location: '', tags: [], character: null, keywords: [] });
     // 필터 옵션 데이터 (백엔드에서 불러온 목록)
     const [options, setOptions] = useState({ locations: [], tags: [], characters: [] });
-    
+
     // --- 2. 초기 데이터 로딩 (검색 옵션들) ---
     useEffect(() => {
         const fetchOptions = async () => {
@@ -34,14 +34,14 @@ const MainPage = ({ user, navigateTo }) => {
                     fetch(`${API_BASE_URL}/characters`),
                     fetch(`${API_BASE_URL}/content/tags`)
                 ]);
-                
+
                 setOptions({
                     locations: locRes.ok ? await locRes.json() : [],
                     characters: charRes.ok ? await charRes.json() : [],
                     tags: tagRes.ok ? await tagRes.json() : []
                 });
-            } catch (e) { 
-                console.error("Fetch options error", e); 
+            } catch (e) {
+                console.error("Fetch options error", e);
             }
         };
         fetchOptions();
@@ -57,17 +57,21 @@ const MainPage = ({ user, navigateTo }) => {
 
             try {
                 const params = new URLSearchParams({ page: 1, per_page: CONTENTS_PER_PAGE });
-                
+
                 // 검색 조건 파라미터 추가
                 if (searchParams.location) params.append('location', searchParams.location);
                 if (searchParams.tags.length > 0) params.append('tags', searchParams.tags.join(','));
                 if (searchParams.character) params.append('style', searchParams.character.name);
+                // [신규] 검색어(keywords)가 있으면 q 파라미터로 전달
+                if (searchParams.keywords && searchParams.keywords.length > 0) {
+                    searchParams.keywords.forEach(k => params.append('q', k));
+                }
 
                 const response = await fetch(`${API_BASE_URL}/content/list?${params.toString()}`);
                 if (!response.ok) throw new Error("Failed to fetch contents");
 
                 const data = await response.json();
-                
+
                 // 안전하게 데이터 설정
                 const newContents = data.contents || [];
                 setContents(newContents);
@@ -96,6 +100,9 @@ const MainPage = ({ user, navigateTo }) => {
             if (searchParams.location) params.append('location', searchParams.location);
             if (searchParams.tags.length > 0) params.append('tags', searchParams.tags.join(','));
             if (searchParams.character) params.append('style', searchParams.character.name);
+            if (searchParams.keywords && searchParams.keywords.length > 0) {
+                searchParams.keywords.forEach(k => params.append('q', k));
+            }
 
             const response = await fetch(`${API_BASE_URL}/content/list?${params.toString()}`);
             const data = await response.json();
@@ -137,10 +144,10 @@ const MainPage = ({ user, navigateTo }) => {
 
     return (
         <div className="p-4 sm:p-6 md:p-8 space-y-6">
-            
+
             {/* [컴포넌트 1] 분리된 검색바 사용 */}
             <div className="flex justify-center mb-8 relative z-30">
-                <SearchBar 
+                <SearchBar
                     options={options}
                     searchParams={searchParams}
                     onUpdateSearch={handleUpdateSearch}
@@ -159,12 +166,12 @@ const MainPage = ({ user, navigateTo }) => {
                 ) : (
                     <>
                         <div className="flex items-baseline gap-2 mb-2">
-                             <h2 className="text-xl font-bold text-gray-900">
+                            <h2 className="text-xl font-bold text-gray-900">
                                 {searchParams.character ? `${searchParams.character.name} 추천 여행지` : '탐험할 여행지'}
                             </h2>
                             <span className="text-sm text-gray-500">({totalCount}개)</span>
                         </div>
-                       
+
                         <ContentList contents={contents} navigateTo={navigateTo} />
                     </>
                 )}
