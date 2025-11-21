@@ -158,12 +158,13 @@ const LoginPage = ({ login, navigateTo }) => {
                         {loading ? '로그인 중...' : '로그인'}
                     </button>
                 </form>
-                <div className="text-center text-sm">
-                    <button 
-                        onClick={() => navigateTo('main')}
-                        className="font-medium text-indigo-600 hover:text-indigo-500"
+                <div className="text-sm text-gray-500 text-center mt-6">
+                    아직 계정이 없으신가요?{" "}
+                    <button
+                        onClick={() => navigateTo("signup")}
+                        className="text-indigo-500 font-medium hover:underline"
                     >
-                        아직 회원이 아니신가요? (메인으로 돌아가기)
+                        회원가입
                     </button>
                 </div>
             </div>
