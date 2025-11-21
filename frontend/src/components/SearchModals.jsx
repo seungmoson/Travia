@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { MapPin, X } from 'lucide-react';
 
-// [여행지 모달]
+// 1. [여행지 모달]
 export const LocationModal = ({ locations, onSelect }) => (
     <div className="p-6 w-[360px]">
         <div className="relative mb-4">
@@ -28,7 +28,7 @@ export const LocationModal = ({ locations, onSelect }) => (
     </div>
 );
 
-// [태그 모달]
+// 2. [태그 모달]
 export const TagsModal = ({ tags, selectedTags, selectedKeywords, onToggle, onUpdateKeywords }) => {
     const [searchTerm, setSearchTerm] = useState("");
 
@@ -37,12 +37,10 @@ export const TagsModal = ({ tags, selectedTags, selectedKeywords, onToggle, onUp
         return tagName.toLowerCase().includes(searchTerm.toLowerCase());
     });
 
-    // 키워드 추가 핸들러 (Enter 키)
     const handleKeyDown = (e) => {
         if (e.key === 'Enter' && searchTerm.trim()) {
             e.preventDefault();
             const newKeyword = searchTerm.trim();
-            // 이미 있는 키워드가 아니면 추가
             if (!selectedKeywords.includes(newKeyword)) {
                 onUpdateKeywords([...selectedKeywords, newKeyword]);
             }
@@ -50,7 +48,6 @@ export const TagsModal = ({ tags, selectedTags, selectedKeywords, onToggle, onUp
         }
     };
 
-    // 키워드 삭제 핸들러
     const removeKeyword = (keyword) => {
         onUpdateKeywords(selectedKeywords.filter(k => k !== keyword));
     };
@@ -68,16 +65,13 @@ export const TagsModal = ({ tags, selectedTags, selectedKeywords, onToggle, onUp
                 />
             </div>
 
-            {/* 선택된 키워드 표시 영역 */}
+            {/* 선택된 키워드 */}
             {selectedKeywords && selectedKeywords.length > 0 && (
                 <div className="mb-4 flex flex-wrap gap-2">
                     {selectedKeywords.map((keyword, idx) => (
                         <span key={idx} className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-rose-100 text-rose-800">
                             #{keyword}
-                            <button
-                                onClick={(e) => { e.stopPropagation(); removeKeyword(keyword); }}
-                                className="ml-1.5 hover:text-rose-900"
-                            >
+                            <button onClick={(e) => { e.stopPropagation(); removeKeyword(keyword); }} className="ml-1.5 hover:text-rose-900">
                                 <X size={12} />
                             </button>
                         </span>
@@ -105,16 +99,14 @@ export const TagsModal = ({ tags, selectedTags, selectedKeywords, onToggle, onUp
                     );
                 })}
                 {filteredTags.length === 0 && (
-                    <div className="text-gray-400 text-sm w-full text-center py-4">
-                        검색 결과가 없습니다.
-                    </div>
+                    <div className="text-gray-400 text-sm w-full text-center py-4">검색 결과가 없습니다.</div>
                 )}
             </div>
         </div>
     );
 };
 
-// [캐릭터 모달]
+// 3. [캐릭터 모달]
 export const CharacterModal = ({ characters, selectedChar, onSelect }) => (
     <div className="p-6 w-[500px]">
         <h3 className="text-sm font-bold text-gray-800 mb-1">여행 캐릭터를 선택하세요</h3>

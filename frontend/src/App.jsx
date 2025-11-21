@@ -1,28 +1,21 @@
-import React, { useState, useEffect } from 'react';
-// [수정] 파일 구조에 맞게 import 경로 수정
+import React, { useState, useEffect, useRef } from 'react';
 import MainPage from './pages/MainPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
-// --- ▼ [신규] SignupPage import 추가 ▼ ---
 import SignupPage from './pages/SignupPage.jsx';
-// --- ▲ [신규] ▲ ---
 import BookingPage from './pages/BookingPage.jsx';
 import DetailPage from './pages/DetailPage.jsx';
 import MyPage from './pages/MyPage.jsx';
 import GuideDashboard from './pages/GuideDashboard.jsx';
-// --- ▼ [신규] MapPage import 추가 ▼ ---
 import MapPage from './pages/MapPage.jsx';
-// --- ▲ [신규] ▲ ---
 import { UserIcon } from './assets/Icons.jsx';
 import './index.css';
 
-// --- ▼ [신규] AuthModal 컴포넌트 import ▼ ---
 import AuthModal from './components/AuthModal.jsx';
-// --- ▲ [신규] ▲ ---
+import SearchBar from './components/SearchBar.jsx';
 
+// [중요] 백엔드 API 주소 설정
+const API_BASE_URL = 'http://localhost:8000';
 
-/**
- * 토큰 디코딩 함수 (단순 Base64 디코딩)
- */
 const decodeToken = (token) => {
     try {
         const payloadBase64 = token.split('.')[1];
@@ -35,44 +28,108 @@ const decodeToken = (token) => {
     }
 };
 
-
-/**
- * 메인 App 컴포넌트: 전역 상태 관리 및 라우팅 담당 (커스텀 라우팅 구현)
- */
 const App = () => {
-    console.log("--- App component is rendering ---");
-
-    // [수정] 사용자 상태에 id와 user_type 추가
+    // 1. 사용자 상태
     const [user, setUser] = useState({
         isLoggedIn: false,
         username: 'Guest',
-        id: null,        // 사용자 ID (BookingBox 비교용)
-        user_type: null,  // 'traveler' 또는 'guide'
+        id: null,
+        user_type: null,
     });
 
-    // 페이지 라우팅 상태
+    // 2. 페이지 라우팅 상태
     const [currentPage, setCurrentPage] = useState('main');
     const [currentContentId, setCurrentContentId] = useState(null);
-
-    // --- ▼ [신규] 로그인 모달 상태 추가 ▼ ---
     const [showAuthModal, setShowAuthModal] = useState(false);
-    // --- ▲ [신규] ▲ ---
 
-    // [수정] 앱 로드 시 모든 로그인 상태 복원
+    // 3. 검색 상태 (입력값)
+    const [searchParams, setSearchParams] = useState({
+        location: '',
+        tags: [],
+        keywords: [],
+        character: null,
+    });
+
+    // 4. 검색 옵션 데이터 (백엔드에서 불러옴)
+    const [searchOptions, setSearchOptions] = useState({
+        locations: [],   
+        tags: [],       
+        characters: []  
+    });
+
+    // 5. 헤더 애니메이션 상태 (스크롤 감지)
+    const [isScrolled, setIsScrolled] = useState(false);
+    const [isExpanded, setIsExpanded] = useState(true); 
+    
+    // [핵심 1] 이전 스크롤 위치 저장
+    const lastScrollY = useRef(0);
+    // [핵심 2] 애니메이션 중 스크롤 이벤트 무시를 위한 락(Lock)
+    const isToggling = useRef(false);
+
+    // --- 검색 옵션 로딩 ---
+    useEffect(() => {
+        const fetchOptions = async () => {
+            try {
+                const [locRes, charRes, tagRes] = await Promise.all([
+                    fetch(`${API_BASE_URL}/content/locations`),
+                    fetch(`${API_BASE_URL}/characters`),
+                    fetch(`${API_BASE_URL}/content/tags`)
+                ]);
+
+                const locations = locRes.ok ? await locRes.json() : [];
+                const characters = charRes.ok ? await charRes.json() : [];
+                const tags = tagRes.ok ? await tagRes.json() : [];
+
+                setSearchOptions({ locations, tags, characters });
+            } catch (error) {
+                console.error("검색 옵션 불러오기 실패:", error);
+                setSearchOptions({ locations: [], tags: [], characters: [] });
+            }
+        };
+        fetchOptions();
+    }, []); 
+
+    // --- [수정됨] 스크롤 이벤트 리스너 ---
+    useEffect(() => {
+        const handleScroll = () => {
+            // 확장이 진행 중(잠금 상태)이라면 스크롤 로직 무시
+            if (isToggling.current) return;
+
+            const currentScrollY = window.scrollY;
+
+            // 1. 최상단(50px 이하)에서는 무조건 확장
+            if (currentScrollY <= 50) {
+                setIsScrolled(false);
+                setIsExpanded(true);
+            } 
+            // 2. 스크롤이 내려왔을 때
+            else {
+                setIsScrolled(true);
+                
+                // 아래로 내리는 중(current > last)이면 축소
+                if (currentScrollY > lastScrollY.current) {
+                    setIsExpanded(false);
+                }
+                // 위로 올리는 중이면 유지 (깜빡임 방지)
+            }
+
+            lastScrollY.current = currentScrollY;
+        };
+
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    // --- 로그인 유지 로직 ---
     useEffect(() => {
         const token = localStorage.getItem('token');
         const storedUsername = localStorage.getItem('username');
-        const storedId = localStorage.getItem('user_id'); // [추가]
-        const storedUserType = localStorage.getItem('user_type'); // [추가]
+        const storedId = localStorage.getItem('user_id');
+        const storedUserType = localStorage.getItem('user_type');
 
-        // [수정] 모든 정보가 있는지 확인
         if (token && storedUsername && storedId && storedUserType) {
             const payload = decodeToken(token);
-            // 토큰 유효성 검사 (만료 시간 확인)
             if (payload && payload.exp * 1000 > Date.now()) {
-                console.log(`Found valid token on load. Restoring user session for: ${storedUsername}`);
-
-                // [수정] id와 user_type도 상태에 저장
                 setUser({
                     isLoggedIn: true,
                     username: storedUsername,
@@ -80,260 +137,174 @@ const App = () => {
                     user_type: storedUserType
                 });
             } else {
-                console.log("Found expired or invalid token. Clearing storage.");
-                // [수정] 모든 정보 제거
-                localStorage.removeItem('token');
-                localStorage.removeItem('username');
-                localStorage.removeItem('user_id');
-                localStorage.removeItem('user_type');
+                localStorage.clear();
             }
         }
-    }, []); // Empty dependency array means run only once on mount
+    }, []);
 
-    // [수정] 로그인 처리 함수 (LoginPage에서 호출, 인자 없음)
-    const handleLogin = () => {
-        // LoginPage가 저장한 localStorage에서 모든 정보를 읽어옴
-        const token = localStorage.getItem('token');
-        const username = localStorage.getItem('username');
-        const id = localStorage.getItem('user_id');
-        const user_type = localStorage.getItem('user_type');
-
-        if (token && username && id && user_type) {
-            console.log("handleLogin: Reading user info from localStorage", { username, id, user_type });
-            setUser({
-                isLoggedIn: true,
-                username: username,
-                id: id,
-                user_type: user_type
-            });
-            navigateTo('main'); // 로그인 성공 후 메인 페이지로 이동
-        } else {
-            console.error("handleLogin Error: LoginPage did not set all items in localStorage.");
-            // 비정상 상태. 다시 로그인하도록 유도
-            navigateTo('login');
-        }
-    };
-
-    // [수정] 로그아웃 처리 함수
-    const handleLogout = () => {
-        console.log("handleLogout called, setting user state to logged out");
-
-        // [수정] id와 user_type도 초기화
-        setUser({
-            isLoggedIn: false,
-            username: 'Guest',
-            id: null,
-            user_type: null
-        });
-
-        // [수정] 모든 사용자 정보 localStorage에서 제거
-        localStorage.removeItem('token');
-        localStorage.removeItem('username');
-        localStorage.removeItem('user_id');
-        localStorage.removeItem('user_type');
-
-        setCurrentPage('main');
-    };
-
-    // --- ▼ [신규] 모달 제어 핸들러 함수 3개 ▼ ---
-    /**
-     * 모달 닫기
-     */
-    const handleCloseModal = () => {
-        setShowAuthModal(false);
-    };
-
-    /**
-     * 모달에서 [로그인] 버튼 클릭
-     */
-    const handleModalLogin = () => {
-        setShowAuthModal(false); // 모달 닫고
-        navigateTo('login');    // 로그인 페이지로 이동
-    };
-
-    /**
-     * 모달에서 [회원가입] 버튼 클릭
-     */
-    const handleModalSignup = () => {
-        setShowAuthModal(false); // 모달 닫고
-        navigateTo('signup');   // 회원가입 페이지로 이동
-    };
-    // --- ▲ [신규] ▲ ---
-
-
-    /**
-     * 페이지 이동 함수 (라우팅 역할)
-     */
+    // --- 핸들러 함수들 ---
+    
     const navigateTo = (page, contentId = null) => {
-        console.log(`Navigating to '${page}', contentId: ${contentId}, current user state:`, user);
-
-        // [수정] 로그인 필수 페이지 확인 ('signup'은 제외)
         const loginRequiredPages = ['booking', 'myPage', 'guideDashboard'];
         if (loginRequiredPages.includes(page) && !user.isLoggedIn) {
-            console.log(`Page '${page}' requires login, showing auth modal.`);
-            // [수정] 로그인 페이지 대신 Auth 모달을 띄웁니다.
             setShowAuthModal(true);
-            // setCurrentPage('login'); // 👈 이 부분을 주석 처리
         } else {
             setCurrentPage(page);
-            setCurrentContentId(contentId); // 상세/예약 페이지 이동 시 ID 설정
-            // [추가] 페이지 이동 시 상단으로 스크롤
+            setCurrentContentId(contentId);
             window.scrollTo(0, 0);
         }
     };
 
-    console.log("App component user state before renderPage:", user);
+    const handleUpdateSearch = (newParams) => {
+        setSearchParams(prev => ({ ...prev, ...newParams }));
+        if (currentPage !== 'main') navigateTo('main');
+    };
 
-    // 현재 페이지 컴포넌트를 렌더링하는 함수
-    const renderPage = () => {
-        switch (currentPage) {
-            case 'login':
-                // [수정] login prop으로 인자 없는 handleLogin 함수 전달
-                return <LoginPage login={handleLogin} navigateTo={navigateTo} />;
+    // 알약 검색바 클릭 시 확장 (잠금 로직 추가)
+    const handleExpand = () => {
+        setIsExpanded(true);
+        
+        // 확장 애니메이션이 일어나는 동안(약 500ms) 스크롤 이벤트를 무시하도록 설정
+        isToggling.current = true;
+        setTimeout(() => {
+            isToggling.current = false; 
+        }, 500);
+    };
 
-            // --- ▼ [수정] 'signup' 페이지 케이스 (임시 -> 실제) ▼ ---
-            case 'signup':
-                return <SignupPage navigateTo={navigateTo} />;
-            // --- ▲ [수정] ▲ ---
-
-            case 'booking':
-                return <BookingPage contentId={currentContentId} navigateTo={navigateTo} user={user} />;
-            case 'detail':
-                // [정상] 이제 'id'와 'user_type'이 포함된 user 객체가 전달됨
-                return <DetailPage
-                    contentId={currentContentId}
-                    navigateTo={navigateTo}
-                    user={user}
-                    setShowAuthModal={setShowAuthModal} // 👈 [수정] 모달 함수 전달
-                />;
-
-            case 'myPage':
-                return <MyPage user={user} navigateTo={navigateTo} />;
-
-            case 'guideDashboard':
-                return <GuideDashboard user={user} navigateTo={navigateTo} />;
-
-            // --- ▼ [신규] 'map' 페이지 케이스 추가 ▼ ---
-            case 'map':
-                return <MapPage navigateTo={navigateTo} />;
-            // --- ▲ [신규] ▲ ---
-
-            case 'main':
-            default:
-                return <MainPage user={user} navigateTo={navigateTo} />;
+    const handleLogin = () => {
+        const token = localStorage.getItem('token');
+        const username = localStorage.getItem('username');
+        const id = localStorage.getItem('user_id');
+        const user_type = localStorage.getItem('user_type');
+        if (token && username && id && user_type) {
+            setUser({ isLoggedIn: true, username, id, user_type });
+            navigateTo('main');
+        } else {
+            navigateTo('login');
         }
     };
 
-    // ... (useEffect 주석 부분은 동일하므로 생략) ...
+    const handleLogout = () => {
+        setUser({ isLoggedIn: false, username: 'Guest', id: null, user_type: null });
+        localStorage.clear(); 
+        setCurrentPage('main');
+    };
 
+    const handleCloseModal = () => setShowAuthModal(false);
+    const handleModalLogin = () => { setShowAuthModal(false); navigateTo('login'); };
+    const handleModalSignup = () => { setShowAuthModal(false); navigateTo('signup'); };
+
+    const renderPage = () => {
+        switch (currentPage) {
+            case 'login': return <LoginPage login={handleLogin} navigateTo={navigateTo} />;
+            case 'signup': return <SignupPage navigateTo={navigateTo} />;
+            case 'booking': return <BookingPage contentId={currentContentId} navigateTo={navigateTo} user={user} />;
+            case 'detail': return <DetailPage contentId={currentContentId} navigateTo={navigateTo} user={user} setShowAuthModal={setShowAuthModal} />;
+            case 'myPage': return <MyPage user={user} navigateTo={navigateTo} />;
+            case 'guideDashboard': return <GuideDashboard user={user} navigateTo={navigateTo} />;
+            case 'map': return <MapPage navigateTo={navigateTo} />;
+            case 'main':
+            default:
+                return <MainPage user={user} navigateTo={navigateTo} searchParams={searchParams} />;
+        }
+    };
 
     return (
         <div className="min-h-screen bg-gray-100 font-sans antialiased">
-            {/* 네비게이션 바 (Tailwind CSS) */}
-            {/* [수정] map 페이지에서는 nav를 숨길 수도 있지만, 일단은 z-index로 지도 위에 표시되도록 둡니다. */}
-            <nav className="bg-white shadow-md sticky top-0 z-20"> {/* z-index 증가 */}
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex justify-between h-16">
-                        {/* 로고/타이틀 */}
-                        <div className="flex items-center space-x-3 cursor-pointer" onClick={() => navigateTo('main')}>
-                            <img
-                                src="/image3.png" // public 폴더의 이미지를 참조합니다.
-                                alt="Travia Logo"
-                                className="h-10 w-auto object-contain"
+            
+            {/* --- 헤더 영역 --- */}
+            <nav 
+                className={`
+                    bg-white shadow-md sticky top-0 z-50 transition-all duration-300 ease-in-out flex flex-col justify-center
+                    ${isExpanded ? 'h-[180px]' : 'h-[80px]'} 
+                `}
+            >
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full h-full">
+                    <div className="flex items-center justify-between h-full gap-4 relative">
+                        
+                        {/* 1. 로고 */}
+                        <div 
+                            className={`flex-shrink-0 flex items-center cursor-pointer w-[140px] transition-all duration-300 ${isExpanded ? 'self-start mt-6' : ''}`} 
+                            onClick={() => navigateTo('main')}
+                        >
+                            <img src="/image3.png" alt="Travia Logo" className="h-10 w-auto object-contain" />
+                        </div>
+
+                        {/* 2. 검색바 영역 */}
+                        <div className={`flex-1 flex flex-col items-center justify-center transition-all duration-300 ${isExpanded ? 'h-full pt-4' : 'h-full'}`}>
+                            <SearchBar 
+                                options={searchOptions} 
+                                searchParams={searchParams}
+                                onUpdateSearch={handleUpdateSearch}
+                                navigateTo={navigateTo}
+                                isExpanded={isExpanded}
+                                onExpand={handleExpand}
                             />
                         </div>
-                        {/* 우측 사용자 인터페이스 */}
-                        <div className="flex items-center space-x-4">
 
+                        {/* 3. 프로필 영역 (너비 제한 해제 및 닉네임 표시 수정) */}
+                        <div 
+                            // [수정] w-[180px] 고정 제거 -> w-auto 사용
+                            // [수정] justify-end는 유지하되 공간이 필요하면 왼쪽으로 늘어남
+                            className={`flex-shrink-0 w-auto min-w-[140px] flex justify-end items-center space-x-3 transition-all duration-300 ${isExpanded ? 'self-start mt-6' : ''}`}
+                        >
                             {user.isLoggedIn ? (
-                                // 로그인 상태
                                 <>
-                                    <span className="text-gray-700 text-sm font-medium hidden sm:inline">{user.username}님</span>
-
-                                    {/* '내 예약' 버튼 */}
-                                    <button
-                                        onClick={() => navigateTo('myPage')}
-                                        className="w-8 h-8 rounded-full bg-gray-200 hover:bg-gray-300 transition duration-200 flex items-center justify-center shadow-md"
-                                        title="내 예약 보기"
-                                    >
-                                        <svg className="w-5 h-5 text-gray-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                                        </svg>
+                                    {/* [수정] 닉네임 truncate 제거, whitespace-nowrap 추가 (줄바꿈 방지) */}
+                                    <span className="text-gray-700 text-base font-medium hidden lg:inline whitespace-nowrap mr-2">
+                                        {user.username}님
+                                    </span>
+                                    
+                                    {/* 내 예약 버튼 */}
+                                    <button onClick={() => navigateTo('myPage')} className="w-11 h-11 rounded-full flex-shrink-0 bg-gray-100 hover:bg-gray-200 transition flex items-center justify-center" title="내 예약">
+                                        <svg className="w-6 h-6 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
                                     </button>
 
-                                    {/* [수정] '가이드 대시보드' 버튼 (user_type이 'guide'일 때만 보임) */}
+                                    {/* 가이드 대시보드 버튼 */}
                                     {user.user_type === 'guide' && (
-                                        <button
-                                            onClick={() => navigateTo('guideDashboard')}
-                                            className="w-8 h-8 rounded-full bg-gray-200 hover:bg-gray-300 transition duration-200 flex items-center justify-center shadow-md"
-                                            title="가이드 대시보드"
-                                        >
-                                            <svg className="w-5 h-5 text-gray-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v2a4 4 0 004 4h4a2 2 0 002-2v-4M9 17h-2a4 4 0 01-4-4V7a4 4 0 014-4h4a4 4 0 014 4v2" />
-                                            </svg>
+                                        <button onClick={() => navigateTo('guideDashboard')} className="w-11 h-11 rounded-full flex-shrink-0 bg-gray-100 hover:bg-gray-200 transition flex items-center justify-center" title="대시보드">
+                                           <svg className="w-6 h-6 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 17v2a4 4 0 004 4h4a2 2 0 002-2v-4M9 17h-2a4 4 0 01-4-4V7a4 4 0 014-4h4a4 4 0 014 4v2" /></svg>
                                         </button>
                                     )}
 
-                                    <button
-                                        onClick={handleLogout}
-                                        className="w-8 h-8 rounded-full text-white bg-red-500 hover:bg-red-600 transition duration-200 flex items-center justify-center text-sm font-semibold shadow-md"
-                                        title={`${user.username}님 로그아웃`}
-                                    >
-                                        {user.username ? user.username[0].toUpperCase() : '?'}
+                                    {/* 로그아웃 버튼 */}
+                                    <button onClick={handleLogout} className="w-11 h-11 rounded-full flex-shrink-0 bg-red-50 text-red-500 hover:bg-red-100 transition flex items-center justify-center font-bold text-base" title="로그아웃">
+                                        {user.username ? user.username[0].toUpperCase() : 'Out'}
                                     </button>
                                 </>
                             ) : (
-                                // --- ▼ [수정] 로그아웃 상태 (로그인 버튼) ▼ ---
-                                // onClick 이벤트를 navigateTo에서 모달을 여는 함수로 변경
-                                <button
-                                    onClick={() => setShowAuthModal(true)}
-                                    className="w-8 h-8 rounded-full bg-indigo-500 hover:bg-indigo-600 transition duration-200 flex items-center justify-center shadow-md"
-                                    title="로그인/가입"
-                                >
-                                    <UserIcon className="w-5 h-5 text-white" />
+                                /* 로그인 버튼 */
+                                <button onClick={() => setShowAuthModal(true)} className="w-11 h-11 rounded-full flex-shrink-0 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition flex items-center justify-center" title="로그인">
+                                    <UserIcon className="w-6 h-6" />
                                 </button>
-                                // --- ▲ [수정] ▲ ---
                             )}
                         </div>
                     </div>
                 </div>
             </nav>
 
-            {/* --- ▼ [수정] 페이지 내용 렌더링 (지도 페이지 분기 처리) ▼ --- */}
-            {/* 'map' 페이지일 때는 max-w-7xl, p-4 등 패딩을 제거하여 지도를 꽉 채웁니다. */}
             {currentPage === 'map' ? (
-                <main>
-                    {renderPage()}
-                </main>
+                <main>{renderPage()}</main>
             ) : (
                 <main className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
                     {renderPage()}
                 </main>
             )}
-            {/* --- ▲ [수정] ▲ --- */}
 
-
-            {/* --- ▼ [수정] Footer (지도 페이지에서는 숨김) ▼ --- */}
             {currentPage !== 'map' && (
                 <footer className="mt-10 p-4 text-center text-gray-500 text-sm border-t border-gray-200 bg-white">
                     © 2025 Travia AI Platform. AI와 데이터로 만드는 개인화 여행.
                 </footer>
             )}
-            {/* --- ▲ [수정] ▲ --- */}
 
-
-            {/* --- ▼ [신규] 모달 렌더링 ▼ --- */}
-            {/* showAuthModal state에 따라 모달이 표시되거나 숨겨집니다. */}
             <AuthModal
                 show={showAuthModal}
                 onClose={handleCloseModal}
                 onLogin={handleModalLogin}
                 onSignup={handleModalSignup}
             />
-            {/* --- ▲ [신규] ▲ --- */}
         </div>
     );
 };
 
 export default App;
-
