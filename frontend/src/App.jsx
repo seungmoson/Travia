@@ -57,13 +57,12 @@ const App = () => {
         characters: []  
     });
 
-    // 5. 헤더 애니메이션 상태 (스크롤 감지)
+    // 5. 헤더 애니메이션 상태
     const [isScrolled, setIsScrolled] = useState(false);
     const [isExpanded, setIsExpanded] = useState(true); 
     
-    // [핵심 1] 이전 스크롤 위치 저장
+    // [핵심] 이전 스크롤 위치 및 락(Lock)
     const lastScrollY = useRef(0);
-    // [핵심 2] 애니메이션 중 스크롤 이벤트 무시를 위한 락(Lock)
     const isToggling = useRef(false);
 
     // --- 검색 옵션 로딩 ---
@@ -89,28 +88,42 @@ const App = () => {
         fetchOptions();
     }, []); 
 
-    // --- [수정됨] 스크롤 이벤트 리스너 ---
+    // --- [최종 수정] 스크롤 올릴 때 확대 방지 (Top에서만 확대) ---
     useEffect(() => {
         const handleScroll = () => {
-            // 확장이 진행 중(잠금 상태)이라면 스크롤 로직 무시
             if (isToggling.current) return;
 
             const currentScrollY = window.scrollY;
+            const prevScrollY = lastScrollY.current;
+            const isMovingDown = currentScrollY > prevScrollY;
 
-            // 1. 최상단(50px 이하)에서는 무조건 확장
-            if (currentScrollY <= 50) {
-                setIsScrolled(false);
-                setIsExpanded(true);
-            } 
-            // 2. 스크롤이 내려왔을 때
-            else {
-                setIsScrolled(true);
-                
-                // 아래로 내리는 중(current > last)이면 축소
-                if (currentScrollY > lastScrollY.current) {
-                    setIsExpanded(false);
+            // 1. 맨 위(0~10px)에 도착했을 때만 -> 무조건 확대
+            if (currentScrollY <= 10) {
+                if (!isExpanded) {
+                    setIsExpanded(true);
+                    setIsScrolled(false);
                 }
-                // 위로 올리는 중이면 유지 (깜빡임 방지)
+                lastScrollY.current = currentScrollY;
+                return;
+            }
+
+            // 2. 스크롤 내리는 중 (Down) -> 축소
+            if (isMovingDown) {
+                if (isExpanded && currentScrollY > 50) {
+                    isToggling.current = true; // 🔒 잠금
+                    setIsExpanded(false);      // 축소
+                    setIsScrolled(true);
+
+                    setTimeout(() => {
+                        isToggling.current = false; // 🔓 해제
+                    }, 500);
+                }
+            } 
+            // 3. 스크롤 올리는 중 (Up)
+            else {
+                // [수정 포인트] 올릴 때는 아무것도 하지 않음 (작은 상태 유지)
+                // 원래 있던 setIsExpanded(true) 코드를 삭제했습니다.
+                // 이제 사용자가 맨 위(0px)까지 가야만 헤더가 커집니다.
             }
 
             lastScrollY.current = currentScrollY;
@@ -118,7 +131,7 @@ const App = () => {
 
         window.addEventListener('scroll', handleScroll, { passive: true });
         return () => window.removeEventListener('scroll', handleScroll);
-    }, []);
+    }, [isExpanded]);
 
     // --- 로그인 유지 로직 ---
     useEffect(() => {
@@ -160,12 +173,11 @@ const App = () => {
         if (currentPage !== 'main') navigateTo('main');
     };
 
-    // 알약 검색바 클릭 시 확장 (잠금 로직 추가)
+    // 알약 검색바 클릭 시 확장
     const handleExpand = () => {
+        if (isExpanded) return;
         setIsExpanded(true);
-        
-        // 확장 애니메이션이 일어나는 동안(약 500ms) 스크롤 이벤트를 무시하도록 설정
-        isToggling.current = true;
+        isToggling.current = true; 
         setTimeout(() => {
             isToggling.current = false; 
         }, 500);
@@ -242,15 +254,12 @@ const App = () => {
                             />
                         </div>
 
-                        {/* 3. 프로필 영역 (너비 제한 해제 및 닉네임 표시 수정) */}
+                        {/* 3. 프로필 영역 */}
                         <div 
-                            // [수정] w-[180px] 고정 제거 -> w-auto 사용
-                            // [수정] justify-end는 유지하되 공간이 필요하면 왼쪽으로 늘어남
                             className={`flex-shrink-0 w-auto min-w-[140px] flex justify-end items-center space-x-3 transition-all duration-300 ${isExpanded ? 'self-start mt-6' : ''}`}
                         >
                             {user.isLoggedIn ? (
                                 <>
-                                    {/* [수정] 닉네임 truncate 제거, whitespace-nowrap 추가 (줄바꿈 방지) */}
                                     <span className="text-gray-700 text-base font-medium hidden lg:inline whitespace-nowrap mr-2">
                                         {user.username}님
                                     </span>

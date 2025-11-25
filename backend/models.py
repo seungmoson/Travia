@@ -269,17 +269,17 @@ class ReviewTag(Base):
     tag = relationship("Tag", back_populates="review_tags")
 
 # ==================================================
-# 5. AI Character System (신규 섹션)
+# 5. AI Character System
 # ==================================================
 
-# --- ▼ [신규] 1. 📖 'AI 규칙' 정의 테이블 (대분류) ▼ ---
 class AiCharacter(Base):
     __tablename__ = "ai_characters"
     __table_args__ = {'schema': SCHEMA_NAME}
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String(100), unique=True, nullable=False)
-    description = Column(Text, nullable=True)
+    name = Column(String(100), unique=True, nullable=False)   # 예: 위대한 개츠비, 쿠폰 든 나폴레옹
+    catchphrase = Column(String(255), nullable=True)          # 예: "내 파티에 오차는 없어. 샴페인, 폭죽, 음악 큐!"
+    description = Column(Text, nullable=True)                 # 상세 설명 (성격, 행동 양식 등)
     image_url = Column(String(255), nullable=True)
 
     definition_tags = relationship("AiCharacterDefinitionTag", back_populates="ai_character", cascade="all, delete-orphan")
