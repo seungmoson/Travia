@@ -31,8 +31,11 @@ def get_characters(db: Session = Depends(get_db)):
             response_data.append({
                 "id": char.id,
                 "name": char.name,
+                
+                # ▼ [추가] 프론트엔드에서 대사(말풍선)로 사용할 데이터
+                "catchphrase": char.catchphrase, 
+                
                 "description": char.description,
-                # ▼ [수정] 프론트엔드 변수명에 맞춰 키값을 'image_url'로 통일
                 "image_url": char.image_url, 
                 "relatedTags": tag_list
             })

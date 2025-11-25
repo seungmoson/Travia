@@ -22,14 +22,14 @@ from seed_definitions import (
     SEED_CONTENTS_DATA
 )
 
-# --- 'AI 정의' 파일 임포트 (현실적인 리뷰 & 페르소나 믹스 포함) ---
+# --- 'AI 정의' 파일 임포트 ---
 from seed_ai_definitions import (
     SEED_AI_CHARACTERS_DATA,
     SEED_AI_TAG_DEFINITIONS,
     SEED_REALISTIC_GUIDE_REVIEWS,     # 가이드 평가 (전체 풀)
     SEED_REALISTIC_TRAVELER_REVIEWS,  # 여행자 평가 (전체 풀)
-    CONTENT_PERSONA_MIX,              # [신규] 콘텐츠별 캐릭터 비율
-    CHARACTER_PRODUCT_REVIEWS         # [신규] 캐릭터별 상품 리뷰 말투
+    CONTENT_PERSONA_MIX,              # (참고용) 콘텐츠별 캐릭터 비율
+    CHARACTER_PRODUCT_REVIEWS         # (참고용) 캐릭터별 상품 리뷰 말투
 )
 
 
@@ -162,7 +162,7 @@ def create_seed_data(db: Session):
     print("  4. Creating Tags... (Skipped - Handled by AI rules)")
     
     # --- 3. Content, Images, Bookings, Reviews ---
-    print("  5. Creating Contents, Images, Bookings, Reviews (with AI Persona Mix)...")
+    print("  5. Creating Contents, Images, Bookings, Reviews...")
     total_contents = 0
     total_bookings = 0
     total_reviews = 0
@@ -204,35 +204,17 @@ def create_seed_data(db: Session):
             db.add(ContentImage(contents_id=new_content.id, image_url=image_path, sort_order=1, is_main=True))
 
             # =================================================================
-            # 3-4. Booking & Review 생성 (페르소나 믹스 적용 로직)
+            # 3-4. Booking & Review 생성 (수정됨)
             # =================================================================
             
-            # (1) 콘텐츠 제목에 맞는 캐릭터 비율(Mix) 찾기
-            target_mix = {}
-            for mix_key, mix_ratio in CONTENT_PERSONA_MIX.items():
-                if mix_key in content_data["title"]:
-                    target_mix = mix_ratio
-                    break
+            # seed_definitions.py에 정의된 수동 리뷰 목록을 가져옵니다.
+            reviews_data = content_data.get("reviews", [])
             
-            # 매칭되는 믹스가 없으면 랜덤(지킬앤하이드 등) 믹스 사용
-            if not target_mix:
-                target_mix = {"지킬 앤 하이드": 50, "로또 맞은 흥부": 30, "위대한 개츠비": 20}
+            # 수동 리뷰 데이터를 순회하며 생성합니다.
+            for i, (review_rating, review_text) in enumerate(reviews_data):
+                reviewer = random.choice(traveler_users_list) # 리뷰어는 랜덤 선택
 
-            # (2) 비율에 맞춰 캐릭터 뽑기 (예: 개츠비 60%, 벤츠 30%...)
-            mix_population = list(target_mix.keys())
-            mix_weights = list(target_mix.values())
-            
-            # 리뷰 개수 설정 (3~8개 랜덤)
-            num_reviews = random.randint(3, 8)
-            
-            # 가중치 기반으로 캐릭터 이름 리스트 생성
-            selected_char_names = random.choices(mix_population, weights=mix_weights, k=num_reviews)
-
-            # (3) 선택된 캐릭터별로 데이터 생성
-            for char_name in selected_char_names:
-                reviewer = random.choice(traveler_users_list) # 리뷰어 계정은 랜덤
-
-                # Booking 생성
+                # (1) Booking 생성
                 new_booking = Booking(
                     traveler_id=reviewer.id,
                     content_id=new_content.id,
@@ -244,52 +226,41 @@ def create_seed_data(db: Session):
                 db.flush()
                 total_bookings += 1
 
-                # -------------------------------------------------------------
-                # [Review] 상품 리뷰: 캐릭터 말투 적용 (CHARACTER_PRODUCT_REVIEWS)
-                # -------------------------------------------------------------
-                # 해당 캐릭터의 리뷰 템플릿 중 하나 랜덤 선택
-                char_reviews = CHARACTER_PRODUCT_REVIEWS.get(char_name, ["정말 좋았습니다!"])
-                review_text = random.choice(char_reviews)
-                
-                # 별점: 캐릭터 성향에 따라 약간의 편차 (기본 4~5점, 까칠이는 3점 가능)
-                rating = random.choice([4, 5])
-                if char_name in ["방구석 스크루지", "까칠이", "텀블러 쓰는 헤르미온느"]:
-                    rating = random.choice([3, 4, 5])
-
+                # (2) [상품 리뷰] ★ 원본 데이터(review_text) 그대로 사용 ★
+                # seed_definitions.py에서 정성스럽게 작성한 리뷰를 그대로 넣습니다.
                 db.add(Review(
                     booking_id=new_booking.id,
                     reviewer_id=reviewer.id,
-                    rating=rating,
+                    rating=review_rating,
                     text=review_text, 
                     created_at=datetime.now() - timedelta(hours=random.randint(1, 48))
                 ))
                 total_reviews += 1
 
-                # -------------------------------------------------------------
-                # [GuideReview] 여행자 -> 가이드: 현실적인 리뷰 풀 사용
-                # -------------------------------------------------------------
-                guide_review_rating = rating
+                # (3) [가이드/여행자 상호 리뷰] -> 현실적인 리뷰 풀에서 랜덤 선택
+                # 여기서는 AI 분석용 데이터를 위해 다양한 패턴을 섞습니다.
+                
+                # [GuideReview] 여행자 -> 가이드
+                guide_review_rating = review_rating # 상품 만족도와 비슷하게 설정
                 db.add(GuideReview(
                     booking_id=new_booking.id,
                     guide_id=guide_user.id,
                     reviewer_id=reviewer.id,
                     rating=guide_review_rating,
-                    text=random.choice(SEED_REALISTIC_GUIDE_REVIEWS), # 9가지 성향이 섞인 풀에서 랜덤
+                    text=random.choice(SEED_REALISTIC_GUIDE_REVIEWS), # 랜덤 풀 사용
                     created_at=datetime.now() - timedelta(hours=random.randint(1, 48))
                 ))
                 total_guide_reviews += 1
                 guide_ratings[guide_user.id].append(guide_review_rating)
 
-                # -------------------------------------------------------------
-                # [TravelerReview] 가이드 -> 여행자: 현실적인 리뷰 풀 사용
-                # -------------------------------------------------------------
+                # [TravelerReview] 가이드 -> 여행자
                 traveler_review_rating = random.choice([4, 5])
                 db.add(TravelerReview(
                     booking_id=new_booking.id,
                     guide_id=guide_user.id,
                     traveler_id=reviewer.id,
                     rating=traveler_review_rating,
-                    text=random.choice(SEED_REALISTIC_TRAVELER_REVIEWS), # 9가지 성향이 섞인 풀에서 랜덤
+                    text=random.choice(SEED_REALISTIC_TRAVELER_REVIEWS), # 랜덤 풀 사용
                     created_at=datetime.now() - timedelta(hours=random.randint(1, 48))
                 ))
                 total_traveler_reviews += 1

@@ -106,7 +106,7 @@ export const TagsModal = ({ tags, selectedTags, selectedKeywords, onToggle, onUp
     );
 };
 
-// 3. [캐릭터 모달]
+// 3. [캐릭터 모달] - 수정됨 (대사 노출 & 상세설명 호버링)
 export const CharacterModal = ({ characters, selectedChar, onSelect }) => (
     <div className="p-6 w-[500px]">
         <h3 className="text-sm font-bold text-gray-800 mb-1">여행 캐릭터를 선택하세요</h3>
@@ -117,11 +117,13 @@ export const CharacterModal = ({ characters, selectedChar, onSelect }) => (
                 <div
                     key={char.id}
                     onClick={(e) => { e.stopPropagation(); onSelect(char); }}
-                    className={`flex items-start p-4 rounded-xl border cursor-pointer transition-all hover:shadow-md ${selectedChar?.id === char.id
+                    // [Group & Relative] 호버 효과와 오버레이 위치를 위해 클래스 추가
+                    className={`relative group overflow-hidden flex items-start p-4 rounded-xl border cursor-pointer transition-all hover:shadow-md ${selectedChar?.id === char.id
                             ? 'border-rose-500 ring-1 ring-rose-500 bg-gray-50'
                             : 'border-gray-200 bg-white'
                         }`}
                 >
+                    {/* [A] 기본 노출 레이어 (이미지 + 대사) */}
                     <img
                         src={char.image_url || "https://via.placeholder.com/100"}
                         alt={char.name}
@@ -131,7 +133,12 @@ export const CharacterModal = ({ characters, selectedChar, onSelect }) => (
                         <div className="flex justify-between items-center mb-1">
                             <h4 className="font-bold text-gray-900">{char.name}</h4>
                         </div>
-                        <p className="text-sm text-gray-500 mb-3 leading-snug">{char.description}</p>
+                        
+                        {/* ▼ 여기가 핵심입니다: 라우터에서 받아온 'catchphrase' 대사를 보여줍니다 */}
+                        <p className="text-sm text-gray-600 mb-3 leading-snug italic font-medium">
+                            "{char.catchphrase || "여행을 떠나볼까요?"}"
+                        </p>
+                        
                         <div className="flex flex-wrap gap-1.5">
                             {char.relatedTags?.slice(0, 3).map((t, i) => (
                                 <span key={i} className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-md font-medium">
@@ -139,6 +146,15 @@ export const CharacterModal = ({ characters, selectedChar, onSelect }) => (
                                 </span>
                             ))}
                         </div>
+                    </div>
+
+                    {/* [B] 호버 시 나타나는 상세 설명 레이어 (오버레이) */}
+                    {/* group-hover:opacity-100 -> 마우스 올리면 보임 / delay-500 -> 0.5초 뒤 등장 */}
+                    <div className="absolute inset-0 bg-white/95 backdrop-blur-[2px] p-4 flex flex-col items-center justify-center text-center 
+                                    opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-500 pointer-events-none">
+                        <p className="text-sm text-gray-800 font-medium leading-relaxed break-keep">
+                            {char.description}
+                        </p>
                     </div>
                 </div>
             ))}
