@@ -84,7 +84,7 @@ GUIDE_DATA = [
 SEED_CONTENTS_DATA = [
     {
         # 1. (User #15)
-        "location": "용산구", "guide_key": "SeoulInsider", "tag_key": "서울여행", "image_key": "SEO_Night",
+        "location": "서울특별시 용산구", "guide_key": "SeoulInsider", "tag_key": "서울여행", "image_key": "SEO_Night",
         "title": "서울 야경 감성 투어 🌃",
         "description": "남산타워, 청계천, 광화문 등 서울의 대표 야경 명소를 걸으며 감성 가득한 밤 산책을 즐길 수 있습니다.",
         "latitude": 37.5463224, "longitude": 126.9931821,
@@ -98,7 +98,7 @@ SEED_CONTENTS_DATA = [
     },
     {
         # 2. (User #16)
-        "location": "해운대구", "guide_key": "BusanOceanExpert", "tag_key": "부산여행", "image_key": "BUS_Cafe",
+        "location": "부산광역시 해운대구", "guide_key": "BusanOceanExpert", "tag_key": "부산여행", "image_key": "BUS_Cafe",
         "title": "부산 바다 감성 카페 투어 ☕🌊",
         "description": "해운대와 송정에 위치한 오션뷰 카페를 하루 만에 즐길 수 있는 투어입니다.",
         "latitude": 35.1719465, "longitude": 129.1741038,
@@ -112,7 +112,7 @@ SEED_CONTENTS_DATA = [
     },
     {
         # 3. (User #20)
-        "location": "제주시", "guide_key": "JejuWind", "tag_key": "제주도여행", "image_key": "JEJ_Trek",
+        "location": "제주특별자치도 제주시", "guide_key": "JejuWind", "tag_key": "제주도여행", "image_key": "JEJ_Trek",
         "title": "제주 오름 트래킹과 비밀의 숲 🌿",
         "description": "관광객이 잘 모르는 제주의 숨겨진 오름과 신비로운 숲길을 탐험하는 힐링 트래킹입니다.",
         "latitude": 33.54475, "longitude": 126.674041,
@@ -126,7 +126,7 @@ SEED_CONTENTS_DATA = [
     },
     {
         # 4. (User #3)
-        "location": "경주시", "guide_key": "IncheonNavigator", "tag_key": "경주여행", "image_key": "GYE_Hist",
+        "location": "경상북도 경주시", "guide_key": "IncheonNavigator", "tag_key": "경주여행", "image_key": "GYE_Hist",
         "title": "경주 역사 유적 야간 산책 🌙",
         "description": "동궁과 월지(안압지), 첨성대의 아름다운 야경과 함께 신라의 역사를 되새겨보는 시간입니다.",
         "latitude": 35.832269, "longitude": 129.2206453,
@@ -140,7 +140,7 @@ SEED_CONTENTS_DATA = [
     },
     {
         # 5. (User #18)
-        "location": "속초시", "guide_key": "DaeguStoryteller", "tag_key": "강원도여행", "image_key": "GWJ_Seorak",
+        "location": "강원도 속초시", "guide_key": "DaeguStoryteller", "tag_key": "강원도여행", "image_key": "GWJ_Seorak",
         "title": "설악산 울산바위 하이킹 ⛰️",
         "description": "설악산의 대표 코스인 울산바위를 오르며 대한민국의 아름다운 산세를 감상하는 코스입니다.",
         "latitude": 38.1195504, "longitude": 128.4655581,
@@ -154,7 +154,7 @@ SEED_CONTENTS_DATA = [
     },
     {
         # 6. (User #1)
-        "location": "중구", "guide_key": "DaejeonGuide", "tag_key": "인천여행", "image_key": "INC_China",
+        "location": "인천광역시 중구", "guide_key": "DaejeonGuide", "tag_key": "인천여행", "image_key": "INC_China",
         "title": "인천 차이나타운 & 개항장 거리 🚶‍♂️",
         "description": "짜장면의 발상지인 차이나타운과 근대 역사가 살아 숨 쉬는 개항장 거리를 둘러봅니다.",
         "latitude": 37.475589, "longitude": 126.6178849,
@@ -168,7 +168,7 @@ SEED_CONTENTS_DATA = [
     },
     {
         # 7. (User #10)
-        "location": "중구", "guide_key": "GwangjuLocal", "tag_key": "대구여행", "image_key": "DG_Cafe",
+        "location": "대구광역시 중구", "guide_key": "GwangjuLocal", "tag_key": "대구여행", "image_key": "DG_Cafe",
         "title": "대구 김광석 거리 & 감성 카페 🎸",
         "description": "故 김광석을 추억하는 벽화 거리와 주변의 특색 있는 카페들을 탐방하는 감성 투어입니다.",
         "latitude": 35.8695743, "longitude": 128.5894923,
@@ -182,7 +182,7 @@ SEED_CONTENTS_DATA = [
     },
     {
         # 8. (User #8)
-        "location": "유성구", "guide_key": "GangwonHiker", "tag_key": "대전여행", "image_key": "DJN_Sci",
+        "location": "대전광역시 유성구", "guide_key": "GangwonHiker", "tag_key": "대전여행", "image_key": "DJN_Sci",
         "title": "대전 엑스포 과학공원 & 성심당 🥐",
         "description": "과학의 도시 대전을 상징하는 엑스포 공원과 빵지순례의 성지 성심당을 방문하는 코스입니다.",
         "latitude": 36.376261, "longitude": 127.3753009,
@@ -196,7 +196,7 @@ SEED_CONTENTS_DATA = [
     },
     {
         # 9. (User #5)
-        "location": "남구", "guide_key": "JeonjuMaster", "tag_key": "울산여행", "image_key": "USN_Whale",
+        "location": "울산광역시 남구", "guide_key": "JeonjuMaster", "tag_key": "울산여행", "image_key": "USN_Whale",
         "title": "울산 장생포 고래문화마을 & 대왕암 🐋",
         "description": "과거 고래잡이의 중심지였던 장생포와 울산의 대표 명소 대왕암 공원을 함께 둘러봅니다.",
         "latitude": 35.5058099, "longitude": 129.3826032,
@@ -210,7 +210,7 @@ SEED_CONTENTS_DATA = [
     },
     {
         # 10. (User #12)
-        "location": "영등포구", "guide_key": "YeosuCaptain", "tag_key": "서울여행", "image_key": "SEO_Bike",
+        "location": "서울특별시 영등포구", "guide_key": "YeosuCaptain", "tag_key": "서울여행", "image_key": "SEO_Bike",
         "title": "한강 자전거 라이딩 & 피크닉 🚲🧺",
         "description": "시원한 강바람을 맞으며 한강 자전거길을 달리고, 잔디밭에서 여유로운 피크닉을 즐기는 투어입니다.",
         "latitude": 37.516708, "longitude": 126.9580742,
@@ -224,7 +224,7 @@ SEED_CONTENTS_DATA = [
     },
     {
         # 11. (User #2)
-        "location": "안동시", "guide_key": "SeoulInsider", "tag_key": "안동여행", "image_key": "AND_Hahoe",
+        "location": "경상북도 안동시", "guide_key": "SeoulInsider", "tag_key": "안동여행", "image_key": "AND_Hahoe",
         "title": "안동 하회마을 전통 체험 & 병산서원 🏞️",
         "description": "유네스코 세계문화유산인 하회마을에서 고택의 정취를 느끼고 병산서원의 아름다운 건축미를 감상합니다.",
         "latitude": 36.5389131, "longitude": 128.5181474,
@@ -243,7 +243,7 @@ SEED_CONTENTS_DATA = [
     },
     {
         # 12. (User #6)
-        "location": "강릉시", "guide_key": "BusanOceanExpert", "tag_key": "강릉여행", "image_key": "GANG_Coffee",
+        "location": "강원특별자치도 강릉시", "guide_key": "BusanOceanExpert", "tag_key": "강릉여행", "image_key": "GANG_Coffee",
         "title": "강릉 커피거리 & 안목해변 산책 ☕️",
         "description": "커피의 도시 강릉, 안목해변 커피거리에서 바다를 보며 즐기는 향긋한 커피 한 잔의 여유.",
         "latitude": 37.7723486, "longitude": 128.9476577,
@@ -262,7 +262,7 @@ SEED_CONTENTS_DATA = [
     },
     {
         # 13. (User #11)
-        "location": "전주시", "guide_key": "JejuWind", "tag_key": "전주여행", "image_key": "JEO_Food",
+        "location": "전북특별자치도 전주시", "guide_key": "JejuWind", "tag_key": "전주여행", "image_key": "JEO_Food",
         "title": "전주 한옥마을 미식 투어 & 한복 체험 🎎",
         "description": "전주 한옥마을에서 한복을 입고 거닐며 비빔밥, 떡갈비, 길거리 음식 등 다양한 맛을 즐깁니다.",
         "latitude": 35.8175376, "longitude": 127.1520417,
@@ -281,7 +281,7 @@ SEED_CONTENTS_DATA = [
     },
     {
         # 14. (User #4)
-        "location": "순천시", "guide_key": "IncheonNavigator", "tag_key": "순천여행", "image_key": "SUN_Wetland",
+        "location": "전라남도 순천시", "guide_key": "IncheonNavigator", "tag_key": "순천여행", "image_key": "SUN_Wetland",
         "title": "순천만 국가정원 & 순천만 습지 🌾",
         "description": "아름답게 가꾸어진 국가정원과 광활한 순천만 습지의 갈대밭을 거닐며 자연의 위대함을 느낍니다.",
         "latitude": 34.885971, "longitude": 127.5090298,
@@ -300,7 +300,7 @@ SEED_CONTENTS_DATA = [
     },
     {
         # 15. (User #19)
-        "location": "김해시", "guide_key": "DaeguStoryteller", "tag_key": "김해여행", "image_key": "GIM_Wine",
+        "location": "경상남도 김해시", "guide_key": "DaeguStoryteller", "tag_key": "김해여행", "image_key": "GIM_Wine",
         "title": "김해 와인동굴 & 가야 테마파크 🍇",
         "description": "폐터널을 개조한 와인동굴에서 와인을 시음하고, 가야의 역사를 테마로 한 공원에서 시간을 보냅니다.",
         "latitude": 35.7145111, "longitude": 128.7203152,
@@ -319,7 +319,7 @@ SEED_CONTENTS_DATA = [
     },
     {
         # 16. (User #7)
-        "location": "여수시", "guide_key": "DaejeonGuide", "tag_key": "여수여행", "image_key": "YEO_Yacht",
+        "location": "전라남도 여수시", "guide_key": "DaejeonGuide", "tag_key": "여수여행", "image_key": "YEO_Yacht",
         "title": "여수 밤바다 낭만 요트 투어 ⛵✨",
         "description": "여수 밤바다를 배경으로 요트를 타며 돌산대교와 거북선대교의 화려한 야경을 감상하는 낭만 투어입니다.",
         "latitude": 34.742042, "longitude": 127.753037,
@@ -338,7 +338,7 @@ SEED_CONTENTS_DATA = [
     },
     {
         # 17. (User #13)
-        "location": "청송군", "guide_key": "GwangjuLocal", "tag_key": "청송여행", "image_key": "CHEO_Juwang",
+        "location": "경상북도 청송군", "guide_key": "GwangjuLocal", "tag_key": "청송여행", "image_key": "CHEO_Juwang",
         "title": "청송 주왕산 트래킹 & 주산지 🌳",
         "description": "유네스코 세계지질공원인 주왕산의 기암괴석을 감상하고, 영화 '봄 여름 가을 겨울 그리고 봄'의 배경이 된 주산지를 둘러봅니다.",
         "latitude": 36.3882181, "longitude": 129.1665986,
@@ -357,7 +357,7 @@ SEED_CONTENTS_DATA = [
     },
     {
         # 18. (User #14)
-        "location": "포항시", "guide_key": "GangwonHiker", "tag_key": "포항여행", "image_key": "POH_Yeongil",
+        "location": "경상북도 포항시", "guide_key": "GangwonHiker", "tag_key": "포항여행", "image_key": "POH_Yeongil",
         "title": "포항 영일대 해상누각 & 환호공원 스페이스워크 🌉",
         "description": "영일대 해수욕장의 해상누각 야경과 환호공원의 짜릿한 스페이스워크를 체험하는 포항 핵심 투어입니다.",
         "latitude": 36.0561507, "longitude": 129.3781717,
@@ -376,7 +376,7 @@ SEED_CONTENTS_DATA = [
     },
     {
         # 19. (User #17)
-        "location": "남해군", "guide_key": "JeonjuMaster", "tag_key": "남해여행", "image_key": "NAM_German",
+        "location": "경상남도 남해군", "guide_key": "JeonjuMaster", "tag_key": "남해여행", "image_key": "NAM_German",
         "title": "남해 독일마을 & 다랭이논 🇩🇪🌾",
         "description": "이국적인 독일마을에서 독일 맥주와 소시지를 맛보고, 바다를 향해 펼쳐진 계단식 논인 다랭이논의 풍경을 감상합니다.",
         "latitude": 34.7997168, "longitude": 128.0386376,
@@ -395,7 +395,7 @@ SEED_CONTENTS_DATA = [
     },
     {
         # 20. (User #9)
-        "location": "군산시", "guide_key": "YeosuCaptain", "tag_key": "군산여행", "image_key": "GUN_Modern",
+        "location": "전라북도 군산시", "guide_key": "YeosuCaptain", "tag_key": "군산여행", "image_key": "GUN_Modern",
         "title": "군산 근대역사 거리 & 경암동 철길마을 🚂",
         "description": "군산의 일제강점기 근대 건축물과 철길마을을 둘러보는 역사 체험 투어입니다.",
         "latitude": 35.9812506, "longitude": 126.7326194,
@@ -414,7 +414,7 @@ SEED_CONTENTS_DATA = [
     },
     {
         # 21 서울 전통시장
-        "location": "종로구",
+        "location": "서울특별시 종로구",
         "guide_key": "SeoulInsider",
         "tag_key": "서울여행",
         "image_key": "SEO_MarketTour",
@@ -437,7 +437,7 @@ SEED_CONTENTS_DATA = [
     },
     {
         #22 서울 북촌 한옥
-        "location": "종로구",
+        "location": "서울특별시 종로구",
         "guide_key": "BusanOceanExpert",
         "tag_key": "서울여행",
         "image_key": "SEO_BukchonPhoto",
@@ -460,7 +460,7 @@ SEED_CONTENTS_DATA = [
     },
     {
         #23 부산 감천문화마을
-        "location": "사하구",
+        "location": "부산광역시 사하구",
         "guide_key": "JejuWind",
         "tag_key": "부산여행",
         "image_key": "BUS_GamcheonArt",
@@ -483,7 +483,7 @@ SEED_CONTENTS_DATA = [
     },
     {
         #24 제주 서쪽 오름 해안 드라이브
-        "location": "제주시",
+        "location": "제주특별자치도 서귀포시",
         "guide_key": "IncheonNavigator",
         "tag_key": "제주여행",
         "image_key": "JEJ_WestCoast",
@@ -506,7 +506,7 @@ SEED_CONTENTS_DATA = [
     },
     {
         #25 경주 야간 월정교 & 동궁과 월지(안압지) 라이트업
-        "location": "경주시",
+        "location": "경상북도 경주시",
         "guide_key": "DaeguStoryteller",
         "tag_key": "경주여행",
         "image_key": "GYE_NightPalace",
@@ -529,7 +529,7 @@ SEED_CONTENTS_DATA = [
     },
     {
         #26 강원도 양양 서핑 입문 클래스
-        "location": "양양군",
+        "location": "강원도 양양군",
         "guide_key": "DaejeonGuide",
         "tag_key": "강원도여행",
         "image_key": "GWJ_YangyangSurfing",
@@ -552,7 +552,7 @@ SEED_CONTENTS_DATA = [
     },
     {
         #27 강릉 경포호 석양 카누 체험
-        "location": "강릉시",
+        "location": "강원특별자치도 강릉시",
         "guide_key": "GwangjuLocal",
         "tag_key": "강릉여행",
         "image_key": "GANG_LakeCanoe",
@@ -575,7 +575,7 @@ SEED_CONTENTS_DATA = [
     },
     {
         #28 인천 송도 센트럴파크 수상택시 투어
-        "location": "연수구",
+        "location": "인천광역시 연수구",
         "guide_key": "GangwonHiker",
         "tag_key": "인천여행",
         "image_key": "INC_SongdoTaxi",
@@ -598,7 +598,7 @@ SEED_CONTENTS_DATA = [
     },
     {
         # 29 대구 서문시장 야간 먹거리 투어
-        "location": "중구",
+        "location": "대구광역시 중구",
         "guide_key": "JeonjuMaster",
         "tag_key": "대구여행",
         "image_key": "DG_NightMarket",
@@ -621,7 +621,7 @@ SEED_CONTENTS_DATA = [
     },
     {
         # 30 대전 유성온천 힐링 스파 코스
-        "location": "유성구",
+        "location": "대전광역시 유성구",
         "guide_key": "YeosuCaptain",
         "tag_key": "대전여행",
         "image_key": "DJN_HotSpring",
@@ -644,7 +644,7 @@ SEED_CONTENTS_DATA = [
     },
     {
         # 31 울산 대왕암 해안 숲길 트래킹
-        "location": "동구",
+        "location": "울산광역시 동구",
         "guide_key": "SeoulInsider",
         "tag_key": "울산여행",
         "image_key": "USN_Daewangam",
@@ -667,7 +667,7 @@ SEED_CONTENTS_DATA = [
     },
     {
         # 32 안동 병산서원 & 낙동강 풍경 한적 산책투어
-        "location": "안동시",
+        "location": "경상북도 안동시",
         "guide_key": "BusanOceanExpert",
         "tag_key": "안동여행",
         "image_key": "AND_Byeongsan",
@@ -690,7 +690,7 @@ SEED_CONTENTS_DATA = [
     },
     {
         # 33 전주 전통 공예 워크샵(한지·부채·매듭)
-        "location": "완주군",
+        "location": "전라북도 완주군",
         "guide_key": "JejuWind",
         "tag_key": "전주여행",
         "image_key": "JEO_Handcraft",
@@ -713,7 +713,7 @@ SEED_CONTENTS_DATA = [
     },
     {
         # 34 순천 드라마촬영장 복고 감성 투어
-        "location": "순천시",
+        "location": "전라남도 순천시",
         "guide_key": "IncheonNavigator",
         "tag_key": "순천여행",
         "image_key": "SUN_RetroDrama",
@@ -736,7 +736,7 @@ SEED_CONTENTS_DATA = [
     },
     {
         # 35   김천 직지사 사찰 힐링 템플스테이
-        "location": "김천시",
+        "location": "경상북도 김천시",
         "guide_key": "DaeguStoryteller",
         "tag_key": "경북여행",
         "image_key": "GIM_TempleStay",
@@ -759,7 +759,7 @@ SEED_CONTENTS_DATA = [
     },
     {
         #36  여수 미남크루즈 일몰 파티 투어
-        "location": "여수시",
+        "location": "전라남도 여수시",
         "guide_key": "DaejeonGuide",
         "tag_key": "여수여행",
         "image_key": "YEO_SunsetCruise",
@@ -782,7 +782,7 @@ SEED_CONTENTS_DATA = [
     },
     {
         #37 여수 포차거리 해산물 미식 야경 투어
-        "location": "여수시",
+        "location": "전라남도 여수시",
         "guide_key": "GwangjuLocal",
         "tag_key": "여수여행",
         "image_key": "YEO_SeafoodNight",
@@ -815,7 +815,7 @@ SEED_CONTENTS_DATA = [
     },
     {
         #38 청송 얼음골 여름 계곡 피서 트래킹
-        "location": "청송군",
+        "location": "경상북도 청송군",
         "guide_key": "GangwonHiker",
         "tag_key": "경북여행",
         "image_key": "CHEO_IceValley",
@@ -838,7 +838,7 @@ SEED_CONTENTS_DATA = [
     },
     {
         #39 포항 호미곶
-        "location": "포항시",
+        "location": "경상북도 포항시",
         "guide_key": "JeonjuMaster",
         "tag_key": "포항여행",
         "image_key": "POH_Sunrise",
@@ -861,7 +861,7 @@ SEED_CONTENTS_DATA = [
     },
     {
         #40 남해 카약
-        "location": "남해군",
+        "location": "경상남도 남해군",
         "guide_key": "YeosuCaptain",
         "tag_key": "경남여행",
         "image_key": "NAM_Kayak",
@@ -883,7 +883,7 @@ SEED_CONTENTS_DATA = [
         ]
     },
     {
-        "location": "군산시",
+        "location": "전북특별자치도 군산시",
         "guide_key": "GwangjuLocal",
         "tag_key": "전북여행",
         "image_key": "GUN_IslandDrive",

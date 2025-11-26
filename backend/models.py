@@ -77,7 +77,7 @@ class Content(Base):
     title = Column(String(200), nullable=False)
     description = Column(Text, nullable=False)
     price = Column(Integer, nullable=False)
-    location = Column(String(10), nullable=False) # 지역 코드 (예: SEO, ROM)
+    location = Column(String(15), nullable=False) # 지역 코드 (예: SEO, ROM)
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)
     status = Column(String(10), nullable=False) # 'Draft', 'Active', 'Archived'
