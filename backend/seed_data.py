@@ -29,7 +29,6 @@ from seed_ai_definitions import (
     SEED_REALISTIC_GUIDE_REVIEWS,     # 가이드 평가 (전체 풀)
     SEED_REALISTIC_TRAVELER_REVIEWS,  # 여행자 평가 (전체 풀)
     CONTENT_PERSONA_MIX,              # (참고용) 콘텐츠별 캐릭터 비율
-    CHARACTER_PRODUCT_REVIEWS         # (참고용) 캐릭터별 상품 리뷰 말투
 )
 
 

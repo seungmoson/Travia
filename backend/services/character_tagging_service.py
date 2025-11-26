@@ -10,20 +10,25 @@ from models import (
 
 
 def fetch_reviews_without_character(db: Session) -> List[Union[GuideReview, TravelerReview]]:
-    """AI 캐릭터 분류가 아직 안 된(ai_character_id가 NULL) 리뷰 목록을 가져옵니다."""
-    print("Fetching reviews without AI character ID...")
+    """
+    [수정됨] AI 캐릭터 분류가 아직 안 된(ai_character_id가 NULL) '가이드 리뷰' 목록만 가져옵니다.
+    (여행자 리뷰 조회 로직은 주석 처리됨)
+    """
+    print("Fetching ONLY GUIDE reviews without AI character ID...")
     
     # 1. 가이드 리뷰 (여행자 -> 가이드)
     guide_reviews_to_tag = db.query(GuideReview).filter(
         GuideReview.ai_character_id == None
     ).all()
     
-    # 2. 여행자 리뷰 (가이드 -> 여행자)
-    traveler_reviews_to_tag = db.query(TravelerReview).filter(
-        TravelerReview.ai_character_id == None
-    ).all()
+    # 2. 여행자 리뷰 (가이드 -> 여행자) - [요청에 의해 주석 처리]
+    # traveler_reviews_to_tag = db.query(TravelerReview).filter(
+    #     TravelerReview.ai_character_id == None
+    # ).all()
     
-    return guide_reviews_to_tag + traveler_reviews_to_tag
+    # [수정] 두 리스트를 합치지 않고, 가이드 리뷰 리스트만 반환합니다.
+    # return guide_reviews_to_tag + traveler_reviews_to_tag
+    return guide_reviews_to_tag
 
 def get_all_character_rules(db: Session) -> Tuple[List[str], str]:
     """AI가 사용할 'RAG 규칙서' 2종을 DB에서 생성합니다."""
