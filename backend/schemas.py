@@ -34,6 +34,11 @@ class ContentListSchema(BaseModel):
     main_image_url: Optional[str] = Field(None, description="메인 이미지 URL")
     guide_id: int = Field(..., description="콘텐츠 작성자(가이드)의 User ID")
 
+    # --- ▼ [추가됨] 평점 및 리뷰 개수 (목록 표시용) ▼ ---
+    rating: float = Field(0.0, description="평점 평균 (없으면 0.0)")
+    review_count: int = Field(0, description="리뷰 개수 (없으면 0)")
+    # --- ▲ [추가됨] ▲ ---
+
     model_config = ConfigDict(from_attributes=True)
 
 # ContentList 무한 스크롤용 응답 스키마
@@ -83,8 +88,9 @@ class ContentDetailSchema(ContentListSchema):
     guide_avg_rating: Optional[float] = Field(None, description="가이드 평균 평점")
     created_at: Optional[datetime] = None
     status: Optional[str] = None
-    rating: Optional[float] = Field(None, description="콘텐츠 평균 평점")
-    review_count: Optional[int] = Field(None, description="콘텐츠의 '전체' 리뷰 총 개수")
+    
+    # 상속받은 rating, review_count 사용
+    # 필요하다면 여기서 description을 재정의해도 되지만, 상속만으로 충분합니다.
     
     tags: List[TagSchema] = Field(default_factory=list, description="콘텐츠 태그 목록")
     
@@ -255,6 +261,7 @@ class GuideReviewResponse(BaseModel):
     # --- ▼ [수정] '리뷰별 캐릭터' 및 'AI 증거' 필드 추가 ▼ ---
     ai_character_id: Optional[int] = Field(None, description="% 계산 원본용 캐릭터 ID")
     ai_character: Optional[AiCharacter] = Field(None, description="리뷰별 캐릭터 상세 정보")
+    # 아래는 문자열 Forward Reference 유지 (GuideReviewTag가 아래에 정의됨)
     guide_review_tags: List['GuideReviewTag'] = Field(default_factory=list, description="AI가 추출한 증거 태그 목록")
     # --- ▲ [수정] ▲ ---
     
@@ -275,6 +282,7 @@ class TravelerReviewResponse(BaseModel):
     # --- ▼ [신규] '리뷰별 캐릭터' 및 'AI 증거' 필드 ▼ ---
     ai_character_id: Optional[int] = Field(None, description="% 계산 원본용 캐릭터 ID")
     ai_character: Optional[AiCharacter] = Field(None, description="리뷰별 캐릭터 상세 정보")
+    # 아래는 문자열 Forward Reference 유지 (TravelerReviewTag가 아래에 정의됨)
     traveler_review_tags: List['TravelerReviewTag'] = Field(default_factory=list, description="AI가 추출한 증거 태그 목록")
     # --- ▲ [신규] ▲ ---
     

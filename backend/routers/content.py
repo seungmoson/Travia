@@ -41,7 +41,7 @@ def get_locations(db: Session = Depends(get_db)):
         return []
 
 
-# 2. [콘텐츠 목록 조회] - (수정됨: GuideProfile.users_id 적용)
+# 2. [콘텐츠 목록 조회] - (수정됨: 평점 계산 및 users_id 적용)
 @router.get("/list", response_model=ContentListResponse)
 def get_content_list(
     db: Session = Depends(get_db),
@@ -52,7 +52,16 @@ def get_content_list(
     tags: Optional[str] = Query(None, description="태그 필터"),
     style: Optional[str] = Query(None, description="캐릭터 스타일 (예: 모험가)")
 ):
-    # 1. 기본 쿼리 생성
+    # [수정됨 1] 평점 및 리뷰 개수 계산 서브쿼리
+    # Content -> Booking -> Review 구조이므로 Booking을 거쳐야 함
+    rating_subquery = db.query(
+        Booking.content_id,
+        func.avg(Review.rating).label("avg_rating"),
+        func.count(Review.id).label("review_count")
+    ).join(Review, Booking.id == Review.booking_id)\
+     .group_by(Booking.content_id).subquery()
+
+    # [수정됨 2] 기본 쿼리 생성 (평점 컬럼 추가)
     results_query = db.query(
         Content.id,
         Content.title,
@@ -62,13 +71,15 @@ def get_content_list(
         Content.created_at,
         Content.guide_id,
         User.nickname.label("guide_nickname"),
-        ContentImage.image_url.label("main_image_url")
+        ContentImage.image_url.label("main_image_url"),
+        func.coalesce(rating_subquery.c.avg_rating, 0.0).label("rating"),
+        func.coalesce(rating_subquery.c.review_count, 0).label("review_count")
     ).select_from(Content)\
     .outerjoin(GuideProfile, Content.guide_id == GuideProfile.users_id)\
     .outerjoin(User, GuideProfile.users_id == User.id)\
     .outerjoin(ContentImage, (Content.id == ContentImage.contents_id) & (ContentImage.is_main == True))\
+    .outerjoin(rating_subquery, Content.id == rating_subquery.c.content_id)\
     .filter(Content.status == 'Active')
-    # ▲ 위 두 줄에서 user_id -> users_id 로 수정했습니다.
 
     # 2. Elasticsearch 검색
     if search_terms and es:
@@ -135,7 +146,6 @@ def get_content_list(
         )
 
     # 6. 결과 조회 및 페이징
-    results_query = results_query.distinct()
     total_count = results_query.count()
     
     results = results_query.order_by(Content.created_at.desc())\
@@ -154,7 +164,10 @@ def get_content_list(
             location=row.location if row.location else "미정",
             guide_nickname=row.guide_nickname if row.guide_nickname else "정보 없음",
             main_image_url=row.main_image_url,
-            guide_id=row.guide_id
+            guide_id=row.guide_id,
+            # [수정됨 3] 조회된 rating 값 할당
+            rating=round(float(row.rating), 1) if row.rating else 0.0,
+            review_count=row.review_count if row.review_count else 0
         ))
 
     return ContentListResponse(
