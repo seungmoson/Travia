@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 
-const API_BASE_URL = "http://localhost:8000";
+const API_BASE_URL = "/api";
 
 // 아이콘 컴포넌트 (SVG) - 별도 라이브러리 없이 사용하기 위해 내장
 const UserIcon = () => (
