@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ContentList from '../components/ContentList';
 
-const API_BASE_URL = 'http://localhost:8000'; // 사용하시는 백엔드 포트에 맞게 설정
+const API_BASE_URL = '/api'; // 사용하시는 백엔드 포트에 맞게 설정
 const CONTENTS_PER_PAGE = 9;
 
 const MainPage = ({ user, navigateTo, searchParams }) => {
@@ -129,7 +129,7 @@ const MainPage = ({ user, navigateTo, searchParams }) => {
     return (
         <div className="p-4 sm:p-6 md:p-8 space-y-6">
             
-            {/* [수정] SearchBar 제거됨 (App.jsx 헤더에 있음) */}
+            {/*  SearchBar 제거됨 (App.jsx 헤더에 있음) */}
             
             {/* 현재 검색 조건 표시 (선택사항: 필요 없으면 제거 가능) */}
             {(searchParams.location || searchParams.tags.length > 0 || searchParams.character) && (
