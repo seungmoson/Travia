@@ -7,14 +7,14 @@ const MapPage = ({ navigateTo }) => {
   const [selectedContent, setSelectedContent] = useState(null); 
   const [regionContentList, setRegionContentList] = useState([]);
 
-  // --- ▼▼▼ [수정] 사용감을 위해 이전 로직으로 되돌립니다 ▼▼▼ ---
+  // ---   사용감을 위해 이전 로직으로 되돌립니다  ---
   // 마커나 목록 클릭 시, '페이지 이동'이 아니라 '사이드바 상세 뷰'를 엽니다.
   const handleContentSelect = useCallback((content) => {
-    // [수정] navigateTo(...) 대신, state를 설정하여 사이드바 뷰를 변경
+    //  navigateTo(...) 대신, state를 설정하여 사이드바 뷰를 변경
     setSelectedContent(content); 
     setRegionContentList([]); // 목록 뷰는 닫음
   }, []); // 의존성 배열에서 navigateTo 제거
-  // --- ▲▲▲ [수정 완료] ▲▲▲ ---
+  // ---  [수정 완료]  ---
 
   // [유지] 이 함수는 MapContainer가 지역 데이터를 로드할 때 호출
   const handleRegionDataLoaded = useCallback((dataList) => {
