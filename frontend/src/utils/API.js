@@ -1,5 +1,5 @@
 // src/utils/API.js
-const API_BASE = 'http://localhost:8000';
+const API_BASE = '/api';
 
 /** 내부 공통: JSON 요청 */
 async function fetchJson(url, init = {}) {
