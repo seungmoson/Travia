@@ -8,7 +8,7 @@ import RelatedContentSection from '../components/RelatedContentSection'; // 관�
 import { ThreeDots } from 'react-loader-spinner';
 
 // 백엔드 기본 URL 및 설정값
-const API_BASE_URL = '/api';
+const API_BASE_URL = 'https://guidie.duckdns.org';
 const DUMMY_STORAGE_DOMAIN = 'travia-storage.com';
 const DEFAULT_IMAGE_URL = 'https://placehold.co/800x500/374151/ffffff?text=DETAIL+IMAGE+PLACEHOLDER';
 const REVIEWS_PER_PAGE = 5; // 첫 페이지에 로드할 리뷰 개수
