@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-// --- ▼ [수정] import 경로에서 .jsx 확장자 제거 ▼ ---
+// ---   import 경로에서 .jsx 확장자 제거  ---
 import RelatedContentList from './RelatedContentList'; // RelatedContentList 컴포넌트 import
-// --- ▲ [수정 완료] ▲ ---
+// ---  [수정 완료]  ---
 import { ThreeDots } from 'react-loader-spinner'; // 로딩 스피너 import (npm install react-loader-spinner 필요)
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = 'https://guidie.duckdns.org';
 const RELATED_PER_PAGE = 4; // 페이지당 로드할 관련 콘텐츠 개수
 
 /**
@@ -19,11 +19,11 @@ const RelatedContentSection = ({ contentId, initialRelatedContents, totalRelated
     const [relatedContents, setRelatedContents] = useState(initialRelatedContents || []);
     const [relatedCurrentPage, setRelatedCurrentPage] = useState(1);
     const [loadingMoreRelated, setLoadingMoreRelated] = useState(false);
-    // [수정] 초기 상태 계산 단순화
+    //  초기 상태 계산 단순화
     const [hasMoreRelated, setHasMoreRelated] = useState(true);
     const relatedObserverRef = useRef(null);
 
-    // --- ▼ [수정] Props 변경 시 상태 초기화 및 hasMore 계산 로직 강화 ▼ ---
+    // ---   Props 변경 시 상태 초기화 및 hasMore 계산 로직 강화  ---
     useEffect(() => {
         const initialData = initialRelatedContents || [];
         setRelatedContents(initialData);
@@ -32,7 +32,7 @@ const RelatedContentSection = ({ contentId, initialRelatedContents, totalRelated
         const moreAvailable = totalRelated > 0 && initialData.length < totalRelated;
         setHasMoreRelated(moreAvailable);
     }, [contentId, initialRelatedContents, totalRelated]);
-    // --- ▲ [수정 완료] ▲ ---
+    // ---  [수정 완료]  ---
 
 
     // --- 추가 관련 콘텐츠 로드 함수 ---
@@ -131,13 +131,13 @@ const RelatedContentSection = ({ contentId, initialRelatedContents, totalRelated
             )}
 
             {/* Observer 타겟 및 로딩 상태 표시 */}
-            {/* --- ▼ [수정] JSX 문법 오류 수정 ▼ --- */}
+            {/* ---   JSX 문법 오류 수정  --- */}
             {hasMoreRelated && totalRelated > RELATED_PER_PAGE && (
                  <div ref={relatedObserverRef} className="h-10 flex justify-center items-center mt-4"> 
                     {loadingMoreRelated && <ThreeDots color="#4f46e5" height={40} width={40} />}
                  </div>
             )}
-            {/* --- ▲ [수정 완료] ▲ --- */}
+            {/* ---  [수정 완료]  --- */}
              {!loadingMoreRelated && !hasMoreRelated && totalRelated > 0 && (
                  <p className="text-sm text-gray-500 text-center mt-4">모든 관련 콘텐츠를 불러왔습니다.</p>
             )}
