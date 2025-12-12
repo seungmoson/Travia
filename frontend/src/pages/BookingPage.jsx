@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { MinusIcon, PlusIcon } from '../assets/Icons.jsx';
 
 // 백엔드 API 주소
-const API_BASE_URL = '/api';
+const API_BASE_URL = 'https://guidie.duckdns.org';
 
 /**
  * BookingBox 컴포넌트: 상세 페이지 우측 예약 박스 (API 호출 기능 포함)
