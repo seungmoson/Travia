@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 
 // FastAPI 서버의 주소
-const API_BASE_URL = '/api'; 
+const API_BASE_URL = 'https://guidie.duckdns.org'; 
 
 // App.jsx에서 decodeToken 함수 복사
 /** 토큰 디코딩 함수 (단순 Base64 디코딩)
