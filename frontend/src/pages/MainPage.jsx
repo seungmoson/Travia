@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ContentList from '../components/ContentList';
 
-const API_BASE_URL = '/api'; // 사용하시는 백엔드 포트에 맞게 설정
+const API_BASE_URL = 'https://guidie.duckdns.org'; // 사용하시는 백엔드 포트에 맞게 설정
 const CONTENTS_PER_PAGE = 9;
 
 const MainPage = ({ user, navigateTo, searchParams }) => {
