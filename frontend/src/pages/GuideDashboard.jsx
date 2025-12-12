@@ -212,7 +212,7 @@ function GuideDashboard({ user, navigateTo }) {
     }
 
     try {
-      const response = await fetch('/api/bookings/guide/received', {
+      const response = await fetch('https://guidie.duckdns.org/bookings/guide/received', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -265,7 +265,7 @@ function GuideDashboard({ user, navigateTo }) {
     }
 
     try {
-      const response = await fetch(`/api/bookings/${action}/${bookingId}`, {
+      const response = await fetch(`https://guidie.duckdns.org/bookings/${action}/${bookingId}`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`
