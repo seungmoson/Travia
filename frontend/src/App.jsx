@@ -14,7 +14,7 @@ import AuthModal from './components/AuthModal.jsx';
 import SearchBar from './components/SearchBar.jsx';
 
 // [중요] 백엔드 API 주소 설정
-const API_BASE_URL = '/api';
+const API_BASE_URL = 'https://guidie.duckdns.org';
 
 const decodeToken = (token) => {
     try {
