@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 
 // 백엔드 API 주소
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = 'https://guidie.duckdns.org';
 
 /**
  * 별점 선택 컴포넌트
