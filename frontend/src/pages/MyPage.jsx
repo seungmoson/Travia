@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import ReviewModal from '../components/ReviewModal';
 
 // 백엔드 API 주소
-const API_BASE_URL = '/api';
+const API_BASE_URL = 'https://guidie.duckdns.org';
 const DEFAULT_IMAGE_URL = 'https://placehold.co/400x300/666/white?text=No+Image';
 
 /**
