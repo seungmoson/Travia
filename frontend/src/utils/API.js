@@ -1,5 +1,5 @@
 // src/utils/API.js
-const API_BASE = '/api';
+const API_BASE = 'https://guidie.duckdns.org';
 
 /** 내부 공통: JSON 요청 */
 async function fetchJson(url, init = {}) {
