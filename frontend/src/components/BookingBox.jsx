@@ -7,7 +7,7 @@ const MinusIcon = ({ className }) => <svg className={className} fill="none" view
 const PlusIcon = ({ className }) => <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>;
 
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = 'https://guidie.duckdns.org';
 
 const getTodayDateString = () => {
     const today = new Date();
@@ -20,7 +20,7 @@ const getTodayDateString = () => {
 /**
  * BookingBox 컴포넌트
  */
- // --- ▼ [수정] setShowAuthModal prop 추가 ▼ ---
+ // ---   setShowAuthModal prop 추가  ---
 const BookingBox = ({ contentId, navigateTo, user, contentAuthorId = null, setShowAuthModal }) => {
     const todayString = getTodayDateString();
 
@@ -51,10 +51,10 @@ const BookingBox = ({ contentId, navigateTo, user, contentAuthorId = null, setSh
                     user.id !== null && 
                     String(user.id) === String(contentAuthorId);
 
-    // ▼▼▼ [디버깅 로그 3 추가] ▼▼▼
+    //  [디버깅 로그 3 추가] 
     // isOwner 변수가 실제로 어떻게 계산되었는지 확인합니다.
     console.log("BookingBox [isOwner 계산 결과]:", isOwner); 
-    // ▲▲▲ [로그 추가 완료] ▲▲▲
+    //  [로그 추가 완료] 
 
 
     const handleReservation = async () => {
@@ -67,13 +67,13 @@ const BookingBox = ({ contentId, navigateTo, user, contentAuthorId = null, setSh
             return;
         }
 
-        // --- ▼ [수정] 로그인 안된 경우 모달 띄우기 ▼ ---
+        // ---   로그인 안된 경우 모달 띄우기  ---
         if (!user.isLoggedIn) {
             // navigateTo('login'); // 기존 코드
             setShowAuthModal(true); // 모달을 띄우도록 변경
             return;
         }
-        // --- ▲ [수정 완료] ▲ ---
+        // ---  [수정 완료]  ---
 
         setBookingLoading(true);
         try {
