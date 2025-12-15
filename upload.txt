@@ -1,0 +1,11 @@
+========================파일 형식 일회성 로컬 토큰 발급
+{
+  "file_name": "plana.jpg",
+  "content_type": "image/jpeg",
+  "purpose": "image"
+}
+
+=======================================실제 업로드 부분
+curl -X PUT "https://travia-media-db.s3.ap-northeast-2.amazonaws.com/images/16/f7f301a61f94426f9ccd64153f42a7ab.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIA5M3RLYO6PRKHPO55%2F20251030%2Fap-northeast-2%2Fs3%2Faws4_request&X-Amz-Date=20251030T034930Z&X-Amz-Expires=900&X-Amz-SignedHeaders=content-type%3Bhost&X-Amz-Signature=8ada9d143b8b26fff76ea4ce9c30de38f3f1b7c19827cdfb698f7f069e621892" ^
+     -H "Content-Type: image/jpeg" ^
+     --data-binary "@C:\Users\User\Desktop\plana.jpg"
