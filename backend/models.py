@@ -22,10 +22,8 @@ class User(Base):
     profile_image_url = Column(String(255))
     created_at = Column(DateTime, default=func.now(), nullable=False)
     
-    # --- ▼ [수정] '대표 캐릭터' (여행자로서) 컬럼 추가 ▼ ---
     # ES 검색 및 프로필 요약에 사용 (배치 작업으로 업데이트)
     ai_character_id_as_traveler = Column(Integer, ForeignKey(f'{SCHEMA_NAME}.ai_characters.id'), nullable=True)
-    # --- ▲ [수정] ▲ ---
     
     # 관계 정의
     guide_profile = relationship("GuideProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
@@ -33,25 +31,20 @@ class User(Base):
     reviews_as_reviewer = relationship("Review", back_populates="reviewer")
     traveler_reviews_as_traveler = relationship("TravelerReview", back_populates="traveler")
 
-    # --- ▼ [신규] 대표 캐릭터 관계 정의 ▼ ---
     ai_character_as_traveler = relationship("AiCharacter", foreign_keys=[ai_character_id_as_traveler])
-    # --- ▲ [신규] ▲ ---
 
 class GuideProfile(Base):
     __tablename__ = "guide_profiles"
     __table_args__ = {'schema': SCHEMA_NAME}
 
-    # users_id가 Primary Key이자 Foreign Key
     users_id = Column(Integer, ForeignKey(f'{SCHEMA_NAME}.users.id', ondelete="CASCADE", onupdate="CASCADE"), primary_key=True)
     bio = Column(Text)
     license_status = Column(String(20), nullable=False) # 'Pending', 'Licensed'
     avg_rating = Column(Float, default=0.0, nullable=False)
     manner_score = Column(Integer, default=100, nullable=False)
     
-    # --- ▼ [수정] '대표 캐릭터' (가이드로서) 컬럼 추가 ▼ ---
     # ES 검색 및 프로필 요약에 사용 (배치 작업으로 업데이트)
     ai_character_id_as_guide = Column(Integer, ForeignKey(f'{SCHEMA_NAME}.ai_characters.id'), nullable=True)
-    # --- ▲ [수정] ▲ ---
     
     # 관계 정의
     user = relationship("User", back_populates="guide_profile")
@@ -59,9 +52,7 @@ class GuideProfile(Base):
     guide_reviews = relationship("GuideReview", back_populates="guide")
     traveler_reviews_as_guide = relationship("TravelerReview", back_populates="guide_reviewer")
 
-    # --- ▼ [신규] 대표 캐릭터 관계 정의 ▼ ---
     ai_character_as_guide = relationship("AiCharacter", foreign_keys=[ai_character_id_as_guide])
-    # --- ▲ [신규] ▲ ---
 
 
 # ==================================================
@@ -168,20 +159,21 @@ class GuideReview(Base):
     text = Column(Text, nullable=False)
     created_at = Column(DateTime, default=func.now(), nullable=False)
     
-    # --- ▼ [수정] '리뷰별 캐릭터' 컬럼 추가 ▼ ---
-    # 리뷰 작성 시 AI가 실시간 판단하여 저장 (% 계산의 원본 데이터)
+    # 리뷰별 캐릭터 (원본 데이터)
     ai_character_id = Column(Integer, ForeignKey(f'{SCHEMA_NAME}.ai_characters.id'), nullable=True)
-    # --- ▲ [수정] ▲ ---
+
+    # --- ▼ [신규 추가] AI 판단 근거 (Chain of Thought) ▼ ---
+    # AI가 이 캐릭터를 선택한 이유를 텍스트로 저장합니다. (예: "리뷰에 '돈을 아끼지 않음' 표현이 있어 개츠비형으로 판단함")
+    ai_reasoning = Column(Text, nullable=True)
+    # --- ▲ [신규 추가] ▲ ---
 
     # 관계 정의
     booking = relationship("Booking", back_populates="guide_review")
     guide = relationship("GuideProfile", back_populates="guide_reviews")
-    reviewer = relationship("User", foreign_keys=[reviewer_id]) # 충돌 방지를 위해 foreign_keys 지정
+    reviewer = relationship("User", foreign_keys=[reviewer_id]) 
     
-    # --- ▼ [신규] 'AI 증거' 및 '리뷰별 캐릭터' 관계 정의 ▼ ---
     guide_review_tags = relationship("GuideReviewTag", back_populates="guide_review", cascade="all, delete-orphan")
     ai_character = relationship("AiCharacter", foreign_keys=[ai_character_id])
-    # --- ▲ [신규] ▲ ---
 
 
 class TravelerReview(Base):
@@ -196,20 +188,21 @@ class TravelerReview(Base):
     text = Column(Text, nullable=False)
     created_at = Column(DateTime, default=func.now(), nullable=False)
     
-    # --- ▼ [수정] '리뷰별 캐릭터' 컬럼 추가 ▼ ---
-    # 리뷰 작성 시 AI가 실시간 판단하여 저장 (% 계산의 원본 데이터)
+    # 리뷰별 캐릭터 (원본 데이터)
     ai_character_id = Column(Integer, ForeignKey(f'{SCHEMA_NAME}.ai_characters.id'), nullable=True)
-    # --- ▲ [수정] ▲ ---
+    
+    # --- ▼ [신규 추가] AI 판단 근거 (Chain of Thought) ▼ ---
+    # 여행자 리뷰에 대해서도 AI의 판단 이유를 저장합니다.
+    ai_reasoning = Column(Text, nullable=True)
+    # --- ▲ [신규 추가] ▲ ---
     
     # 관계 정의
     booking = relationship("Booking", back_populates="traveler_review")
     guide_reviewer = relationship("GuideProfile", back_populates="traveler_reviews_as_guide")
     traveler = relationship("User", back_populates="traveler_reviews_as_traveler")
 
-    # --- ▼ [신규] 'AI 증거' 및 '리뷰별 캐릭터' 관계 정의 ▼ ---
     traveler_review_tags = relationship("TravelerReviewTag", back_populates="traveler_review", cascade="all, delete-orphan")
     ai_character = relationship("AiCharacter", foreign_keys=[ai_character_id])
-    # --- ▲ [신규] ▲ ---
 
 
 # ==================================================
@@ -228,11 +221,9 @@ class Tag(Base):
     content_tags = relationship("ContentTag", back_populates="tag")
     review_tags = relationship("ReviewTag", back_populates="tag")
 
-    # --- ▼ [신규] 'AI 시스템' 관계 정의 ▼ ---
     ai_character_definitions = relationship("AiCharacterDefinitionTag", back_populates="tag")
     guide_review_tags = relationship("GuideReviewTag", back_populates="tag")
     traveler_review_tags = relationship("TravelerReviewTag", back_populates="tag")
-    # --- ▲ [신규] ▲ ---
 
 
 class ContentTag(Base):
@@ -247,7 +238,6 @@ class ContentTag(Base):
     tag_id = Column(Integer, ForeignKey(f'{SCHEMA_NAME}.tags.id', ondelete="RESTRICT", onupdate="CASCADE"), nullable=False)
     is_ai_extracted = Column(Boolean, nullable=False)
     
-    # 관계 정의
     content = relationship("Content", back_populates="content_tags")
     tag = relationship("Tag", back_populates="content_tags")
 
@@ -264,7 +254,6 @@ class ReviewTag(Base):
     tag_id = Column(Integer, ForeignKey(f'{SCHEMA_NAME}.tags.id', ondelete="RESTRICT", onupdate="CASCADE"), nullable=False)
     is_ai_extracted = Column(Boolean, nullable=False)
     
-    # 관계 정의
     review = relationship("Review", back_populates="review_tags")
     tag = relationship("Tag", back_populates="review_tags")
 
@@ -277,15 +266,14 @@ class AiCharacter(Base):
     __table_args__ = {'schema': SCHEMA_NAME}
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String(100), unique=True, nullable=False)   # 예: 위대한 개츠비, 쿠폰 든 나폴레옹
-    catchphrase = Column(String(255), nullable=True)          # 예: "내 파티에 오차는 없어. 샴페인, 폭죽, 음악 큐!"
-    description = Column(Text, nullable=True)                 # 상세 설명 (성격, 행동 양식 등)
+    name = Column(String(100), unique=True, nullable=False)
+    catchphrase = Column(String(255), nullable=True)
+    description = Column(Text, nullable=True)
     image_url = Column(String(255), nullable=True)
 
     definition_tags = relationship("AiCharacterDefinitionTag", back_populates="ai_character", cascade="all, delete-orphan")
 
 
-# --- ▼ [신규] 1. 📖 'AI 규칙' 정의 테이블 (매핑) ▼ ---
 class AiCharacterDefinitionTag(Base):
     __tablename__ = "ai_character_definition_tags"
     __table_args__ = (
@@ -297,12 +285,10 @@ class AiCharacterDefinitionTag(Base):
     ai_character_id = Column(Integer, ForeignKey(f'{SCHEMA_NAME}.ai_characters.id', ondelete="CASCADE", onupdate="CASCADE"), nullable=False)
     tag_id = Column(Integer, ForeignKey(f'{SCHEMA_NAME}.tags.id', ondelete="RESTRICT", onupdate="CASCADE"), nullable=False)
 
-    # 관계 정의
     ai_character = relationship("AiCharacter", back_populates="definition_tags")
     tag = relationship("Tag", back_populates="ai_character_definitions")
 
 
-# --- ▼ [신규] 2. 🏷️ 'AI 증거' 저장 테이블 (가이드 리뷰) ▼ ---
 class GuideReviewTag(Base):
     __tablename__ = "guide_review_tags"
     __table_args__ = (
@@ -314,11 +300,10 @@ class GuideReviewTag(Base):
     guide_review_id = Column(Integer, ForeignKey(f'{SCHEMA_NAME}.guide_reviews.id', ondelete="CASCADE", onupdate="CASCADE"), nullable=False)
     tag_id = Column(Integer, ForeignKey(f'{SCHEMA_NAME}.tags.id', ondelete="RESTRICT", onupdate="CASCADE"), nullable=False)
     
-    # 관계 정의
     guide_review = relationship("GuideReview", back_populates="guide_review_tags")
     tag = relationship("Tag", back_populates="guide_review_tags")
 
-# --- ▼ [신규] 2. 🏷️ 'AI 증거' 저장 테이블 (여행자 리뷰) ▼ ---
+
 class TravelerReviewTag(Base):
     __tablename__ = "traveler_review_tags"
     __table_args__ = (
@@ -330,6 +315,5 @@ class TravelerReviewTag(Base):
     traveler_review_id = Column(Integer, ForeignKey(f'{SCHEMA_NAME}.traveler_reviews.id', ondelete="CASCADE", onupdate="CASCADE"), nullable=False)
     tag_id = Column(Integer, ForeignKey(f'{SCHEMA_NAME}.tags.id', ondelete="RESTRICT", onupdate="CASCADE"), nullable=False)
     
-    # 관계 정의
     traveler_review = relationship("TravelerReview", back_populates="traveler_review_tags")
     tag = relationship("Tag", back_populates="traveler_review_tags")
