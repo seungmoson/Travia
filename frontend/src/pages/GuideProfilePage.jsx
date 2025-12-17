@@ -1,22 +1,13 @@
 // src/pages/GuideProfilePage.jsx
 import React, { useEffect, useMemo, useState } from "react";
-import {
-    getGuide,
-    getGuideReviews,
-    getGuideContents,
-    postGuideReview,
-} from "../utils/API.js";
+import {getGuide,getGuideReviews,getGuideContents,postGuideReview,} from "../utils/API.js";
 
-/** 안전한 숫자 처리 */
 const toNum = (v, d = 0) => (typeof v === "number" && !Number.isNaN(v) ? v : d);
-
-/** 아바타 이니셜 */
 const initialOf = (name) =>
     name && typeof name === "string" && name.length > 0
         ? name.trim()[0].toUpperCase()
         : "?";
 
-/** 별점 표시 */
 function Stars({ value = 0 }) {
     const full = Math.round(toNum(value));
     return (
@@ -31,7 +22,6 @@ function Stars({ value = 0 }) {
     );
 }
 
-/** 가이드 헤더 */
 function GuideHeader({ guide }) {
     const name =
         guide.name ||
@@ -90,7 +80,6 @@ function GuideHeader({ guide }) {
     );
 }
 
-/** 가이드 통계 카드 */
 function GuideStats({ guide }) {
     const avg =
         guide.avg_rating ||
@@ -130,7 +119,6 @@ function GuideStats({ guide }) {
     );
 }
 
-/** 가이드 소개 카드 */
 function GuideInfoCard({ guide }) {
     const bio =
         guide.bio || guide.intro || guide.description || "가이드 소개가 아직 없습니다.";
@@ -150,7 +138,6 @@ function GuideInfoCard({ guide }) {
     );
 }
 
-/** 액션바 */
 function GuideActionBar({ guide, navigateTo }) {
     return (
         <div className="bg-white rounded-xl shadow-md p-5 flex items-center justify-between gap-3">
@@ -167,8 +154,6 @@ function GuideActionBar({ guide, navigateTo }) {
                 <button
                     className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition text-sm"
                     onClick={() => {
-                        // 가이드의 대표 콘텐츠가 있다면 그 상세로 이동해 예약 흐름 유도
-                        // 없다면 안내
                         if (guide?.representative_content_id) {
                             navigateTo("detail", guide.representative_content_id);
                         } else {
@@ -184,7 +169,6 @@ function GuideActionBar({ guide, navigateTo }) {
     );
 }
 
-/** 리뷰 섹션 (가이드 대상 전용, 간단 구현) */
 function GuideReviewsSection({ guideId, user }) {
     const [items, setItems] = useState([]);
     const [page, setPage] = useState(1);
@@ -193,20 +177,15 @@ function GuideReviewsSection({ guideId, user }) {
     const [sort, setSort] = useState("latest");
     const [loading, setLoading] = useState(true);
     const [err, setErr] = useState(null);
-
-    // 작성용
     const [writing, setWriting] = useState(false);
     const [rating, setRating] = useState(5);
     const [text, setText] = useState("");
-
     const canWrite = user?.isLoggedIn;
-
     const load = async (p = page, s = sort) => {
         setLoading(true);
         setErr(null);
         try {
             const res = await getGuideReviews(guideId, { page: p, perPage, sort: s });
-            // 백엔드 응답 유연 처리
             const list = res.items || res.data || res.reviews || [];
             const tt = res.total ?? res.total_count ?? list.length;
             setItems(list);
@@ -225,7 +204,6 @@ function GuideReviewsSection({ guideId, user }) {
     }, [guideId, sort]);
 
     const totalPages = useMemo(() => Math.max(1, Math.ceil(total / perPage)), [total, perPage]);
-
     const submitReview = async () => {
         try {
             const token = localStorage.getItem("token");
@@ -378,7 +356,6 @@ function GuideReviewsSection({ guideId, user }) {
     );
 }
 
-/** 가이드의 다른 투어 목록 (간단 카드) */
 function GuideContentList({ items, navigateTo }) {
     if (!items || items.length === 0) {
         return (
@@ -415,7 +392,6 @@ function GuideContentList({ items, navigateTo }) {
     );
 }
 
-/** 메인 페이지 */
 export default function GuideProfilePage({ guideId, navigateTo, user }) {
     const [guide, setGuide] = useState(null);
     const [contents, setContents] = useState([]);
@@ -428,13 +404,10 @@ export default function GuideProfilePage({ guideId, navigateTo, user }) {
             setLoading(true);
             setErr(null);
             try {
-                // 가이드 기본 정보
                 const g = await getGuide(guideId);
-                // 스키마 차이 대응: g.data 등에 감싸져 있을 수 있음
                 const guideData = g?.data || g;
                 if (mounted) setGuide(guideData);
 
-                // 다른 투어
                 const cont = await getGuideContents(guideId, { page: 1, perPage: 9 });
                 const list = cont.items || cont.data || cont.contents || [];
                 if (mounted) setContents(list);
