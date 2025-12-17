@@ -1,8 +1,7 @@
 // src/components/ContentForm.jsx
 import React, { useState } from 'react';
 import { createContent, uploadImage } from '../utils/API.js';
-import MapContainer from './MapContainer.jsx'; // 이미 있음
-// 선택 모드: onSelect({lat,lng,address})를 부모로 올려보내게 MapContainer를 살짝 확장하세요.
+import MapContainer from './MapContainer.jsx';
 
 const REGIONS = ['서울', '부산', '제주', '경주', '강릉', '여수', '전주'];
 
@@ -23,7 +22,6 @@ export default function ContentForm({ user, onSuccess }) {
     const [galleryFiles, setGalleryFiles] = useState([]);
     const [loading, setLoading] = useState(false);
     const [err, setErr] = useState('');
-
     const addTag = () => {
         const t = tagInput.trim();
         if (!t) return;
@@ -31,11 +29,9 @@ export default function ContentForm({ user, onSuccess }) {
         setTagInput('');
     };
     const removeTag = (t) => setForm(f => ({ ...f, tags: f.tags.filter(x => x !== t) }));
-
     const handleSelectPoint = ({ lat, lng, address }) => {
         setForm(f => ({ ...f, meeting_point: { lat, lng, address: address || f.meeting_point.address } }));
     };
-
     const validate = () => {
         if (!form.title || form.title.length < 4) return '제목을 4자 이상 입력하세요.';
         if (!form.description || form.description.length < 20) return '설명을 20자 이상 입력하세요.';
@@ -46,7 +42,6 @@ export default function ContentForm({ user, onSuccess }) {
         if (!mainImageFile) return '대표 이미지를 업로드하세요.';
         return '';
     };
-
     const onSubmit = async (e) => {
         e.preventDefault();
         const v = validate();
@@ -54,7 +49,6 @@ export default function ContentForm({ user, onSuccess }) {
         setErr('');
         setLoading(true);
         try {
-            // 1) 이미지 업로드
             const token = localStorage.getItem('token');
             const mainImageUrl = await uploadImage(mainImageFile, token);
             const galleryUrls = [];
@@ -62,7 +56,6 @@ export default function ContentForm({ user, onSuccess }) {
                 const url = await uploadImage(f, token);
                 galleryUrls.push(url);
             }
-            // 2) 본문 생성
             const payload = {
                 title: form.title,
                 description: form.description,
@@ -71,11 +64,11 @@ export default function ContentForm({ user, onSuccess }) {
                 capacity: Number(form.capacity),
                 start_date: form.start_date,
                 end_date: form.end_date,
-                meeting_point: form.meeting_point,       // {lat,lng,address}
+                meeting_point: form.meeting_point,
                 tags: form.tags,
                 main_image_url: mainImageUrl,
                 gallery_image_urls: galleryUrls,
-                author_id: user.id,                       // 서버가 토큰으로도 확인하지만 함께 보냄
+                author_id: user.id,
             };
             const created = await createContent(payload, token);
             onSuccess?.(created.id);
@@ -90,7 +83,6 @@ export default function ContentForm({ user, onSuccess }) {
     return (
         <form onSubmit={onSubmit} className="space-y-6 bg-white rounded-xl shadow p-6">
             {err && <div className="text-red-600 text-sm">{err}</div>}
-
             <div>
                 <label className="block font-semibold">제목</label>
                 <input className="mt-1 w-full border rounded p-2"
@@ -144,7 +136,6 @@ export default function ContentForm({ user, onSuccess }) {
                 </div>
             </div>
 
-            {/* 지도에서 집결 위치 선택 */}
             <div>
                 <label className="block font-semibold mb-2">집결 위치</label>
                 <div className="h-72 rounded overflow-hidden border relative">
@@ -152,8 +143,7 @@ export default function ContentForm({ user, onSuccess }) {
                         <MapContainer
                             selectionMode
                             onSelect={handleSelectPoint}
-                            initialCenter={{ lat: 37.5665, lng: 126.9780 }}
-                        />
+                            initialCenter={{ lat: 37.5665, lng: 126.9780 }}/>
                     </MapProvider>
                 </div>
                 <p className="text-sm text-gray-600 mt-2">
@@ -161,7 +151,6 @@ export default function ContentForm({ user, onSuccess }) {
                 </p>
             </div>
 
-            {/* 태그 */}
             <div>
                 <label className="block font-semibold">태그</label>
                 <div className="flex gap-2 mt-2">
@@ -183,7 +172,6 @@ export default function ContentForm({ user, onSuccess }) {
                 </div>
             </div>
 
-            {/* 이미지 업로드 */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <label className="block font-semibold">대표 이미지</label>
