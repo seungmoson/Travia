@@ -1,0 +1,14 @@
+배포 지시서를 따라 git clone를 하였을 경우 해당 브렌치는
+주석과 코드 띄어쓰기 등 가독성만 수정한 상태입니다.
+혹여나 따라하시다가 안될시에는 main브렌치를 clone 하신다음
+backend .env파일 db경로와
+backend main.py cors의 origin의 경로 수정 eds브렌치의 해당되는 파일을 보시면 됩니다.
+
+frontend의 localhost로 하드코딩된 부분을 수정해주셔야합니다.
+frontend에서 수정할 부분은 백엔드를 가리키는 모든 파일을 수정해주시면 됩니다.
+vscode에서 ctrl + sfift +f 를 입력하신 다음 localhost 와 8000으로 되어있는 백엔드 주소를
+https://guidie.duckdns.org 로 수정해주시면 됩니다.
+const api 로 되는 한줄 부분만 수정 해주시면 되고
+guide dashboard 같은 다른 컴포넌트 파일에 비슷한  경로에
+localhost:8000/api~라는 부분에서
+  /api 이 앞부분만 https://guidie~로 수정 해주시면 됩니다.
