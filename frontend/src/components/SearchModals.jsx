@@ -1,23 +1,20 @@
 import React, { useState } from 'react';
 import { MapPin, X } from 'lucide-react';
 
-// 1. [여행지 모달]
 export const LocationModal = ({ locations, onSelect }) => (
     <div className="p-6 w-[360px]">
         <div className="relative mb-4">
             <input
                 type="text"
                 placeholder="여행지 검색"
-                className="w-full bg-gray-100 p-3 pl-4 rounded-xl text-sm outline-none focus:ring-2 focus:ring-rose-500 font-bold text-gray-700"
-            />
+                className="w-full bg-gray-100 p-3 pl-4 rounded-xl text-sm outline-none focus:ring-2 focus:ring-rose-500 font-bold text-gray-700"/>
         </div>
         <div className="space-y-1 max-h-64 overflow-y-auto">
             {locations.map((loc, idx) => (
                 <div
                     key={idx}
                     onClick={(e) => { e.stopPropagation(); onSelect(loc); }}
-                    className="flex items-center p-3 hover:bg-gray-100 rounded-lg cursor-pointer transition-colors"
-                >
+                    className="flex items-center p-3 hover:bg-gray-100 rounded-lg cursor-pointer transition-colors">
                     <div className="p-2 bg-gray-200 rounded-lg mr-3">
                         <MapPin size={18} className="text-gray-600" />
                     </div>
@@ -28,10 +25,8 @@ export const LocationModal = ({ locations, onSelect }) => (
     </div>
 );
 
-// 2. [태그 모달]
 export const TagsModal = ({ tags, selectedTags, selectedKeywords, onToggle, onUpdateKeywords }) => {
     const [searchTerm, setSearchTerm] = useState("");
-
     const filteredTags = tags.filter(tag => {
         const tagName = typeof tag === 'string' ? tag : tag.name;
         return tagName.toLowerCase().includes(searchTerm.toLowerCase());
@@ -61,11 +56,9 @@ export const TagsModal = ({ tags, selectedTags, selectedKeywords, onToggle, onUp
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    className="w-full bg-gray-100 p-3 pl-4 rounded-xl text-sm outline-none focus:ring-2 focus:ring-rose-500 font-bold text-gray-700"
-                />
+                    className="w-full bg-gray-100 p-3 pl-4 rounded-xl text-sm outline-none focus:ring-2 focus:ring-rose-500 font-bold text-gray-700"/>
             </div>
 
-            {/* 선택된 키워드 */}
             {selectedKeywords && selectedKeywords.length > 0 && (
                 <div className="mb-4 flex flex-wrap gap-2">
                     {selectedKeywords.map((keyword, idx) => (
@@ -92,8 +85,7 @@ export const TagsModal = ({ tags, selectedTags, selectedKeywords, onToggle, onUp
                             className={`px-4 py-2 rounded-full text-sm border transition-all ${isSelected
                                     ? 'border-black bg-black text-white font-medium'
                                     : 'border-gray-200 bg-white text-gray-600 hover:border-gray-400'
-                                }`}
-                        >
+                                }`}>
                             {tagName}
                         </button>
                     );
@@ -106,7 +98,6 @@ export const TagsModal = ({ tags, selectedTags, selectedKeywords, onToggle, onUp
     );
 };
 
-// 3. [캐릭터 모달] - 수정됨 (대사 노출 & 상세설명 호버링)
 export const CharacterModal = ({ characters, selectedChar, onSelect }) => (
     <div className="p-6 w-[500px]">
         <h3 className="text-sm font-bold text-gray-800 mb-1">여행 캐릭터를 선택하세요</h3>
@@ -121,20 +112,16 @@ export const CharacterModal = ({ characters, selectedChar, onSelect }) => (
                     className={`relative group overflow-hidden flex items-start p-4 rounded-xl border cursor-pointer transition-all hover:shadow-md ${selectedChar?.id === char.id
                             ? 'border-rose-500 ring-1 ring-rose-500 bg-gray-50'
                             : 'border-gray-200 bg-white'
-                        }`}
-                >
-                    {/* [A] 기본 노출 레이어 (이미지 + 대사) */}
+                        }`}>
                     <img
                         src={char.image_url || "https://via.placeholder.com/100"}
                         alt={char.name}
-                        className="w-16 h-16 rounded-lg object-cover flex-shrink-0 bg-gray-200"
-                    />
+                        className="w-16 h-16 rounded-lg object-cover flex-shrink-0 bg-gray-200"/>
                     <div className="ml-4 flex-1">
                         <div className="flex justify-between items-center mb-1">
                             <h4 className="font-bold text-gray-900">{char.name}</h4>
                         </div>
                         
-                        {/* ▼ 여기가 핵심입니다: 라우터에서 받아온 'catchphrase' 대사를 보여줍니다 */}
                         <p className="text-sm text-gray-600 mb-3 leading-snug italic font-medium">
                             "{char.catchphrase || "여행을 떠나볼까요?"}"
                         </p>
@@ -148,8 +135,6 @@ export const CharacterModal = ({ characters, selectedChar, onSelect }) => (
                         </div>
                     </div>
 
-                    {/* [B] 호버 시 나타나는 상세 설명 레이어 (오버레이) */}
-                    {/* group-hover:opacity-100 -> 마우스 올리면 보임 / delay-500 -> 0.5초 뒤 등장 */}
                     <div className="absolute inset-0 bg-white/95 backdrop-blur-[2px] p-4 flex flex-col items-center justify-center text-center 
                                     opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-500 pointer-events-none">
                         <p className="text-sm text-gray-800 font-medium leading-relaxed break-keep">
