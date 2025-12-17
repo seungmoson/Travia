@@ -7,7 +7,9 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
-    open: true  // 브라우저 자동 실행
-    // [수정] proxy: { ... } 설정 전체 삭제
-  }
+    host: true,                 // 0.0.0.0 바인딩 (외부 접속 허용)
+    port: 5173,
+    open: true,                 // 브라우저 자동 실행 (원래 있던 거 유지)
+    allowedHosts: ['guidie.duckdns.org'],  // ★ 이 도메인만 추가 허용
+  },
 })
