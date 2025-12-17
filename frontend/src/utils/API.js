@@ -27,9 +27,6 @@ async function tryPaths(paths, init) {
     throw lastErr;
 }
 
-/* ===========================
- * 기존 함수 (유지)
- * =========================== */
 export async function uploadImage(file, token) {
     const fd = new FormData();
     fd.append('file', file);
@@ -40,7 +37,7 @@ export async function uploadImage(file, token) {
     });
     if (!res.ok) throw new Error('이미지 업로드 실패');
     const data = await res.json();
-    return data.url; // 서버 응답 스키마에 맞게 수정
+    return data.url;
 }
 
 export async function createContent(payload, token) {
@@ -56,10 +53,7 @@ export async function createContent(payload, token) {
     return await res.json(); // {id: number, ...}
 }
 
-/* ===========================
- * 신규: 가이드 프로필/리뷰/콘텐츠
- * =========================== */
-
+ // 가이드 프로필/리뷰/콘텐츠
 /**
  * 가이드 기본 정보 가져오기
  * @param {string|number} guideId
