@@ -1,67 +1,52 @@
 # backend/seed_data.py
-
 from sqlalchemy.orm import Session
 from sqlalchemy import func 
 from datetime import datetime, timedelta
 import bcrypt
 import random
 
-# --- Models 임포트 ---
 from models import (
     User, GuideProfile, Content, ContentImage, ContentVideo, 
     Tag, ContentTag, Review, Booking, 
     GuideReview, TravelerReview, 
-    AiCharacter, AiCharacterDefinitionTag, GuideReviewTag, TravelerReviewTag
-)
+    AiCharacter, AiCharacterDefinitionTag, GuideReviewTag, TravelerReviewTag)
 
-# --- '상품 정의' 파일 임포트 ---
 from seed_definitions import (
     IMAGE_MAP,
     TRAVELER_DATA,
     GUIDE_DATA,
-    SEED_CONTENTS_DATA
-)
+    SEED_CONTENTS_DATA)
 
-# --- 'AI 정의' 파일 임포트 ---
 from seed_ai_definitions import (
     SEED_AI_CHARACTERS_DATA,
     SEED_AI_TAG_DEFINITIONS,
-    SEED_REALISTIC_GUIDE_REVIEWS,     # 가이드 평가 (전체 풀)
-    SEED_REALISTIC_TRAVELER_REVIEWS,  # 여행자 평가 (전체 풀)
-    CONTENT_PERSONA_MIX,              # (참고용) 콘텐츠별 캐릭터 비율
+    SEED_REALISTIC_GUIDE_REVIEWS,
+    SEED_REALISTIC_TRAVELER_REVIEWS,
+    CONTENT_PERSONA_MIX,
 )
 
-
-# --- AI 규칙서 생성 헬퍼 함수 ---
 def _create_ai_rules(db: Session):
-    """(신규) AI 캐릭터와 정의 태그(규칙서)를 DB에 삽입합니다."""
     print("    ... Seeding AI Character Rules ...")
-    
-    # 1. AI 캐릭터 마스터 생성 (9개)
     char_map = {}
     for char_data in SEED_AI_CHARACTERS_DATA:
         new_char = AiCharacter(
             name=char_data["name"],
-            catchphrase=char_data["catchphrase"], # catchphrase 추가
+            catchphrase=char_data["catchphrase"],
             description=char_data["description"],
             image_url=char_data["image_url"]
         )
         db.add(new_char)
-        db.flush() # ID를 미리 받음
+        db.flush()
         char_map[char_data["name"]] = new_char
     print(f"       - {len(char_map)} AiCharacters created.")
-
-    # 2. AI 태그 정의 (Tag 마스터 및 매핑 테이블)
-    tag_map = {} # (DB 쿼리를 줄이기 위한 태그 캐시)
+    tag_map = {}
     total_definitions = 0
-
     for char_name, tag_names in SEED_AI_TAG_DEFINITIONS.items():
         ai_character = char_map.get(char_name)
         if not ai_character:
             continue
             
         for tag_name in tag_names:
-            # Tag 마스터 테이블에서 조회 또는 생성
             tag_obj = tag_map.get(tag_name)
             if not tag_obj:
                 tag_obj = db.query(Tag).filter_by(name=tag_name).first()
@@ -71,7 +56,6 @@ def _create_ai_rules(db: Session):
                     db.flush()
                 tag_map[tag_name] = tag_obj
             
-            # AiCharacterDefinitionTag 매핑 테이블에 연결
             new_definition = AiCharacterDefinitionTag(
                 ai_character_id=ai_character.id,
                 tag_id=tag_obj.id
@@ -85,16 +69,12 @@ def _create_ai_rules(db: Session):
 
 def create_seed_data(db: Session):
     print("--- [seed_data.py] Database Initializer (called by db_init.py) ---")
-    
-    # --- 0. 기존 데이터 삭제 ---
     print("  1. Attempting to delete existing data...")
     try:
-        # (삭제 순서 중요: AI 연결 테이블 먼저 삭제)
         db.query(GuideReviewTag).delete()
         db.query(TravelerReviewTag).delete()
         db.query(AiCharacterDefinitionTag).delete()
         db.query(AiCharacter).delete()
-        
         db.query(ContentTag).delete()
         db.query(GuideReview).delete()
         db.query(TravelerReview).delete()
@@ -106,7 +86,6 @@ def create_seed_data(db: Session):
         db.query(Tag).delete()
         db.query(GuideProfile).delete()
         db.query(User).delete()
-        
         db.commit()
         print("     ✅ Existing data deleted successfully.")
     except Exception as e:
@@ -114,7 +93,6 @@ def create_seed_data(db: Session):
         db.rollback()
         return
 
-    # --- 1. User & Guide Profiles ---
     print("  2. Creating Users and Guide Profiles...")
     users = {} 
     try:
@@ -148,7 +126,6 @@ def create_seed_data(db: Session):
         db.rollback()
         return
 
-    # --- 2-1. AI 규칙서 생성 ---
     print("  3. Creating AI Character Rules...")
     try:
         _create_ai_rules(db)
@@ -159,8 +136,6 @@ def create_seed_data(db: Session):
         return
 
     print("  4. Creating Tags... (Skipped - Handled by AI rules)")
-    
-    # --- 3. Content, Images, Bookings, Reviews ---
     print("  5. Creating Contents, Images, Bookings, Reviews...")
     total_contents = 0
     total_bookings = 0
@@ -182,7 +157,6 @@ def create_seed_data(db: Session):
                 print(f"     ⚠️ Warning: Guide user '{content_data['guide_key']}' not found. Skipping content '{content_data['title']}'.")
                 continue
 
-            # 3-1. Content 생성
             new_content = Content(
                 guide_id=guide_user.id,
                 title=content_data["title"],
@@ -197,23 +171,11 @@ def create_seed_data(db: Session):
             db.add(new_content)
             db.flush()
             total_contents += 1
-
-            # 3-2. ContentImage 생성
             image_path = IMAGE_MAP.get(content_data["image_key"], "/default.png") 
             db.add(ContentImage(contents_id=new_content.id, image_url=image_path, sort_order=1, is_main=True))
-
-            # =================================================================
-            # 3-4. Booking & Review 생성 (수정됨)
-            # =================================================================
-            
-            # seed_definitions.py에 정의된 수동 리뷰 목록을 가져옵니다.
             reviews_data = content_data.get("reviews", [])
-            
-            # 수동 리뷰 데이터를 순회하며 생성합니다.
             for i, (review_rating, review_text) in enumerate(reviews_data):
-                reviewer = random.choice(traveler_users_list) # 리뷰어는 랜덤 선택
-
-                # (1) Booking 생성
+                reviewer = random.choice(traveler_users_list)
                 new_booking = Booking(
                     traveler_id=reviewer.id,
                     content_id=new_content.id,
@@ -224,9 +186,6 @@ def create_seed_data(db: Session):
                 db.add(new_booking)
                 db.flush()
                 total_bookings += 1
-
-                # (2) [상품 리뷰] ★ 원본 데이터(review_text) 그대로 사용 ★
-                # seed_definitions.py에서 정성스럽게 작성한 리뷰를 그대로 넣습니다.
                 db.add(Review(
                     booking_id=new_booking.id,
                     reviewer_id=reviewer.id,
@@ -236,37 +195,31 @@ def create_seed_data(db: Session):
                 ))
                 total_reviews += 1
 
-                # (3) [가이드/여행자 상호 리뷰] -> 현실적인 리뷰 풀에서 랜덤 선택
-                # 여기서는 AI 분석용 데이터를 위해 다양한 패턴을 섞습니다.
-                
-                # [GuideReview] 여행자 -> 가이드
-                guide_review_rating = review_rating # 상품 만족도와 비슷하게 설정
+                guide_review_rating = review_rating
                 db.add(GuideReview(
                     booking_id=new_booking.id,
                     guide_id=guide_user.id,
                     reviewer_id=reviewer.id,
                     rating=guide_review_rating,
-                    text=random.choice(SEED_REALISTIC_GUIDE_REVIEWS), # 랜덤 풀 사용
+                    text=random.choice(SEED_REALISTIC_GUIDE_REVIEWS),
                     created_at=datetime.now() - timedelta(hours=random.randint(1, 48))
                 ))
                 total_guide_reviews += 1
                 guide_ratings[guide_user.id].append(guide_review_rating)
-
-                # [TravelerReview] 가이드 -> 여행자
                 traveler_review_rating = random.choice([4, 5])
                 db.add(TravelerReview(
                     booking_id=new_booking.id,
                     guide_id=guide_user.id,
                     traveler_id=reviewer.id,
                     rating=traveler_review_rating,
-                    text=random.choice(SEED_REALISTIC_TRAVELER_REVIEWS), # 랜덤 풀 사용
+                    text=random.choice(SEED_REALISTIC_TRAVELER_REVIEWS),
                     created_at=datetime.now() - timedelta(hours=random.randint(1, 48))
                 ))
                 total_traveler_reviews += 1
                 if reviewer.id in traveler_ratings:
                     traveler_ratings[reviewer.id].append(traveler_review_rating)
 
-        db.commit() # 모든 콘텐츠 처리 후 커밋
+        db.commit()
         
     except Exception as e:
         import traceback 
@@ -275,12 +228,9 @@ def create_seed_data(db: Session):
         db.rollback()
         return 
     
-    # --- 루프가 정상적으로 끝난 후 ---
     print(f"     ✅ {total_contents} contents, {total_bookings} bookings, {total_reviews} reviews created.")
     print(f"     ✅ {total_guide_reviews} GuideReviews (for AI processing) created.")
     print(f"     ✅ {total_traveler_reviews} TravelerReviews (for AI processing) created.")
-
-    # --- 4. 가이드/여행자 평균 평점/매너점수 업데이트 ---
     print("  6. Updating Guide/Traveler Ratings...")
     try:
         updated_guides = 0
@@ -303,7 +253,6 @@ def create_seed_data(db: Session):
         print(f"     ❌ Error during rating update: {e}")
         traceback.print_exc() 
         db.rollback()
-
 
 if __name__ == "__main__":
     from database import SessionLocal
