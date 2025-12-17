@@ -1,20 +1,17 @@
 // src/utils/API.js
 const API_BASE = 'https://guidie.duckdns.org';
 
-/** 내부 공통: JSON 요청 */
 async function fetchJson(url, init = {}) {
     const res = await fetch(url, init);
     if (!res.ok) {
         const text = await res.text().catch(() => '');
         throw new Error(`[API] ${init.method || 'GET'} ${url} 실패 (status ${res.status}) ${text?.slice(0, 200)}`);
     }
-    // 204 등 비본문 응답 방지
     const contentType = res.headers.get('content-type') || '';
     if (!contentType.includes('application/json')) return {};
     return res.json();
 }
 
-/** 내부 공통: 여러 경로를 순차 시도 (엔드포인트 표기 단/복수 차이 대응) */
 async function tryPaths(paths, init) {
     let lastErr;
     for (const p of paths) {
@@ -53,12 +50,6 @@ export async function createContent(payload, token) {
     return await res.json(); // {id: number, ...}
 }
 
- // 가이드 프로필/리뷰/콘텐츠
-/**
- * 가이드 기본 정보 가져오기
- * @param {string|number} guideId
- * @returns {Promise<object>} { id, name, avatarUrl, intro, languages, regions, stats, ... }
- */
 export async function getGuide(guideId) {
     return tryPaths([
         `/guides/${guideId}`,
@@ -66,12 +57,6 @@ export async function getGuide(guideId) {
     ]);
 }
 
-/**
- * 가이드 리뷰 목록 가져오기
- * @param {string|number} guideId
- * @param {{page?:number, perPage?:number, sort?:'latest'|'rating_desc'|'rating_asc'}} opts
- * @returns {Promise<{items: any[], total: number, page: number, per_page: number}>}
- */
 export async function getGuideReviews(guideId, opts = {}) {
     const { page = 1, perPage = 10, sort = 'latest' } = opts;
     const qs = `?page=${page}&per_page=${perPage}&sort=${encodeURIComponent(sort)}`;
@@ -80,12 +65,6 @@ export async function getGuideReviews(guideId, opts = {}) {
     );
 }
 
-/**
- * 해당 가이드가 올린 다른 콘텐츠 목록
- * @param {string|number} guideId
- * @param {{page?:number, perPage?:number}} opts
- * @returns {Promise<{items: any[], total: number, page: number, per_page: number}>}
- */
 export async function getGuideContents(guideId, opts = {}) {
     const { page = 1, perPage = 8 } = opts;
     const qs = `?page=${page}&per_page=${perPage}`;
@@ -94,12 +73,6 @@ export async function getGuideContents(guideId, opts = {}) {
     );
 }
 
-/**
- * 가이드에게 리뷰 작성
- * @param {string|number} guideId
- * @param {{rating:number, content:string, images?:string[]}} payload
- * @param {string} token (Bearer)
- */
 export async function postGuideReview(guideId, payload, token) {
     if (!token) throw new Error('로그인이 필요합니다.');
     return tryPaths(
