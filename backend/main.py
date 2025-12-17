@@ -13,10 +13,10 @@ app = FastAPI(
 # 2. CORS 설정
 # 프론트엔드(Vite)에서 접근할 수 있도록 5173 포트를 허용합니다.
 origins = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:5173",    # React (Vite) 개발 서버
-    "http://127.0.0.1:5173",    # 로컬 호스트 IP 접속 대비
+    "http://localhost",
+    "http://localhost:5173",          # 로컬 프론트 개발 서버
+    "https://guidie.duckdns.org",     # 실제 배포 HTTPS 도메인
+    "http://guidie.duckdns.org:5173",
 ]
 
 app.add_middleware(
