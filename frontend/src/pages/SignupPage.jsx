@@ -1,8 +1,6 @@
 import React, { useMemo, useState } from "react";
 
 const API_BASE_URL = "https://guidie.duckdns.org";
-
-// 아이콘 컴포넌트 (SVG) - 별도 라이브러리 없이 사용하기 위해 내장
 const UserIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -30,13 +28,9 @@ const SignupPage = ({ navigateTo }) => {
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState("");
     const [isSuccess, setIsSuccess] = useState(false);
-
-    // 중복 확인 관련 상태
-    const [emailCheckMsg, setEmailCheckMsg] = useState(""); // 중복 확인 결과 메시지
-    const [isEmailAvailable, setIsEmailAvailable] = useState(false); // 사용 가능 여부
-    const [checkingEmail, setCheckingEmail] = useState(false); // 중복 확인 로딩 상태
-
-    // 프론트 검증
+    const [emailCheckMsg, setEmailCheckMsg] = useState("");
+    const [isEmailAvailable, setIsEmailAvailable] = useState(false);
+    const [checkingEmail, setCheckingEmail] = useState(false);
     const fieldErrors = useMemo(() => {
         const errs = {};
         if (formData.username.trim().length > 0 && formData.username.trim().length < 2) {
@@ -54,7 +48,6 @@ const SignupPage = ({ navigateTo }) => {
     }, [formData]);
 
     const hasClientErrors = Object.keys(fieldErrors).length > 0;
-
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
 
@@ -63,16 +56,13 @@ const SignupPage = ({ navigateTo }) => {
             setIsSuccess(false);
         }
 
-        // 이메일이 바뀌면 중복 확인 상태 초기화 (다시 확인해야 하므로)
         if (e.target.name === "email") {
             setIsEmailAvailable(false);
             setEmailCheckMsg("");
         }
     };
 
-    // ✅ 이메일 중복 확인 핸들러
     const handleCheckEmail = async () => {
-        // 이메일 형식이 안 맞으면 요청 안 보냄
         if (fieldErrors.email || !formData.email) {
             setEmailCheckMsg("올바른 이메일 형식을 먼저 입력해주세요.");
             return;
@@ -82,25 +72,20 @@ const SignupPage = ({ navigateTo }) => {
         setEmailCheckMsg("");
 
         try {
-            // GET 요청으로 이메일 전달 (백엔드 구현 필요: /auth/check-email?email=...)
             const response = await fetch(`${API_BASE_URL}/auth/check-email?email=${formData.email}`, {
                 method: "GET",
                 headers: { "Content-Type": "application/json" },
             });
 
             if (response.ok) {
-                // 200 OK -> 사용 가능
                 setIsEmailAvailable(true);
                 setEmailCheckMsg("사용 가능한 이메일입니다.");
             } else {
-                // 400 or 409 -> 중복됨
                 setIsEmailAvailable(false);
                 setEmailCheckMsg("이미 사용 중인 이메일입니다.");
             }
         } catch (error) {
             console.error(error);
-            // 에러 시, 백엔드가 없으면 그냥 넘어갈 수도 있게 처리하거나 에러 표시
-            // 여기서는 테스트를 위해 '사용 가능'으로 가정하거나 에러 메시지 출력
             setEmailCheckMsg("서버 확인 불가 (백엔드 연결 필요)");
         } finally {
             setCheckingEmail(false);
@@ -111,14 +96,11 @@ const SignupPage = ({ navigateTo }) => {
         e.preventDefault();
         setMessage("");
         setIsSuccess(false);
-
-        // 1. 형식 검사
         if (hasClientErrors) {
             setMessage("입력 정보를 다시 확인해주세요.");
             return;
         }
 
-        // 2. 이메일 중복 확인 여부 검사 (선택 사항: 강제할지 말지 결정)
         if (!isEmailAvailable) {
             setMessage("이메일 중복 확인을 해주세요.");
             return;
@@ -156,8 +138,6 @@ const SignupPage = ({ navigateTo }) => {
     return (
         <div className="min-h-[80vh] flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
             <div className="w-full max-w-md bg-white p-8 rounded-3xl shadow-2xl space-y-6">
-                
-                {/* 헤더/로고 영역 */}
                 <div className="flex flex-col items-center">
                     <img
                         src="/image3.png"
@@ -165,14 +145,12 @@ const SignupPage = ({ navigateTo }) => {
                         className="w-48 mb-2 object-contain"
                         onError={(e) => {
                             e.target.src = "https://placehold.co/192x64/6366F1/FFFFFF?text=Travia+Logo";
-                        }}
-                    />
+                        }}/>
                     <h1 className="text-3xl font-extrabold text-gray-900 mt-4">Travia 회원가입</h1>
                     <p className="text-sm text-gray-500 mt-1">AI 기반 맞춤 여행 플랫폼</p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-5">
-                    {/* 사용자 이름 */}
                     <div>
                         <label className="block text-gray-700 text-sm font-semibold mb-1">사용자 이름</label>
                         <div className="relative">
@@ -187,15 +165,13 @@ const SignupPage = ({ navigateTo }) => {
                                 required
                                 minLength={2}
                                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
-                                placeholder="이름 또는 닉네임"
-                            />
+                                placeholder="이름 또는 닉네임"/>
                         </div>
                         {fieldErrors.username && (
                             <p className="mt-1 text-xs text-red-600 pl-1">{fieldErrors.username}</p>
                         )}
                     </div>
 
-                    {/* 이메일 (아이콘 + 중복확인 버튼) */}
                     <div>
                         <label className="block text-gray-700 text-sm font-semibold mb-1">이메일</label>
                         <div className="flex gap-2">
@@ -212,20 +188,17 @@ const SignupPage = ({ navigateTo }) => {
                                     className={`w-full pl-10 pr-4 py-2 border rounded-xl focus:outline-none focus:ring-2 transition ${
                                         isEmailAvailable ? "border-green-500 focus:ring-green-500" : "border-gray-300 focus:ring-indigo-500"
                                     }`}
-                                    placeholder="example@email.com"
-                                />
+                                    placeholder="example@email.com"/>
                             </div>
                             <button
                                 type="button" // submit 방지
                                 onClick={handleCheckEmail}
                                 disabled={checkingEmail || !!fieldErrors.email || !formData.email}
-                                className="whitespace-nowrap px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-xl border border-gray-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
+                                className="whitespace-nowrap px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-xl border border-gray-300 transition disabled:opacity-50 disabled:cursor-not-allowed">
                                 {checkingEmail ? "확인 중.." : "중복 확인"}
                             </button>
                         </div>
                         
-                        {/* 이메일 관련 메시지 출력 영역 */}
                         {fieldErrors.email ? (
                             <p className="mt-1 text-xs text-red-600 pl-1">{fieldErrors.email}</p>
                         ) : emailCheckMsg ? (
@@ -235,7 +208,6 @@ const SignupPage = ({ navigateTo }) => {
                         ) : null}
                     </div>
 
-                    {/* 비밀번호 */}
                     <div>
                         <label className="block text-gray-700 text-sm font-semibold mb-1">비밀번호</label>
                         <div className="relative">
@@ -250,25 +222,21 @@ const SignupPage = ({ navigateTo }) => {
                                 required
                                 minLength={8}
                                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
-                                placeholder="비밀번호 (8자 이상)"
-                            />
+                                placeholder="비밀번호 (8자 이상)"/>
                         </div>
                         {fieldErrors.password && (
                             <p className="mt-1 text-xs text-red-600 pl-1">{fieldErrors.password}</p>
                         )}
                     </div>
 
-                    {/* 가입 버튼 */}
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2.5 rounded-xl transition disabled:opacity-50 mt-4 shadow-md"
-                    >
+                        className="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2.5 rounded-xl transition disabled:opacity-50 mt-4 shadow-md">
                         {loading ? "가입 처리 중..." : "회원가입"}
                     </button>
                 </form>
 
-                {/* 전체 폼 메시지 */}
                 {message && (
                     <div className={`mt-4 text-center text-sm font-medium p-3 rounded-lg ${isSuccess ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
                         {message}
