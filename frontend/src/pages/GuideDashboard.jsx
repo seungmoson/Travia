@@ -1,14 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-//  react-router-dom의 useNavigate import 제거
-// import { useNavigate } from 'react-router-dom'; 
 import styled from 'styled-components';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
-
-//  로딩 스피너 (MyPage와 동일)
 import { ThreeDots } from 'react-loader-spinner';
 
-// --- Styled Components (기존과 동일) ---
 const DashboardContainer = styled.div`
   max-width: 900px;
   margin: 40px auto;
@@ -171,42 +166,27 @@ const LoadingContainer = styled.div`
   align-items: center;
   height: 300px;
 `;
-// --- Styled Components (기존과 동일) ---
 
-
-//  App.jsx로부터 user, navigateTo props를 받도록 변경
 function GuideDashboard({ user, navigateTo }) {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
-  //  API 호출 중인 예약 ID (버튼 비활성화용)
   const [processingId, setProcessingId] = useState(null);
-  
-  //  useNavigate 훅 제거
-  // const navigate = useNavigate();
-
-  // [신규] 예약 정렬 함수 (기존과 동일)
   const sortBookings = (bookingArray) => {
     return [...bookingArray].sort((a, b) => {
-      // 1순위: Pending
       if (a.status === 'Pending' && b.status !== 'Pending') return -1;
       if (a.status !== 'Pending' && b.status === 'Pending') return 1;
-      // 2순위: Confirmed (새로 추가)
       if (a.status === 'Confirmed' && b.status !== 'Confirmed') return -1;
       if (a.status !== 'Confirmed' && b.status === 'Confirmed') return 1;
-      // 3순위: 날짜순
       return new Date(a.booking_date) - new Date(b.booking_date);
     });
   };
 
-  // 데이터 가져오기 (useCallback으로 감싸기)
   const fetchBookings = useCallback(async () => {
     const token = localStorage.getItem('token');
     if (!token) {
       setError('로그인이 필요합니다.');
       setLoading(false);
-      //  navigate('/login') 대신 navigateTo('login') 사용
       navigateTo('login');
       return;
     }
@@ -235,26 +215,21 @@ function GuideDashboard({ user, navigateTo }) {
     } finally {
       setLoading(false);
     }
-    //  의존성 배열에 navigate 대신 navigateTo 추가
   }, [navigateTo]); 
 
-  // 마운트 시 예약 정보 가져오기
   useEffect(() => {
     fetchBookings();
   }, [fetchBookings]);
 
-
-  // [신규] 예약 상태 업데이트 공통 함수 (승인 / 거절 / 완료)
   const handleUpdateBookingStatus = async (bookingId, action) => {
     const token = localStorage.getItem('token');
     if (!token) {
       alert('로그인이 필요합니다.');
-      //  navigate('/login') 대신 navigateTo('login') 사용
       navigateTo('login');
       return;
     }
 
-    setProcessingId(bookingId); // 로딩 시작
+    setProcessingId(bookingId);
 
     let alertMessage = '';
     switch (action) {
@@ -279,7 +254,6 @@ function GuideDashboard({ user, navigateTo }) {
 
       const updatedBooking = await response.json(); 
 
-      // 화면 즉시 갱신 (중요)
       setBookings(prevBookings => {
         const updatedList = prevBookings.map(booking =>
           booking.booking_id === bookingId
@@ -293,12 +267,9 @@ function GuideDashboard({ user, navigateTo }) {
       console.error(err);
       alert(err.message);
     } finally {
-      setProcessingId(null); // 로딩 종료
+      setProcessingId(null);
     }
   };
-
-
-  // --- 렌더링 로직 ---
 
   if (loading) {
     return (
@@ -373,9 +344,7 @@ function GuideDashboard({ user, navigateTo }) {
                       </RejectButton>
                     </>
                   )}
-                  {/* ---  [수정 완료]  --- */}
 
-                  {/* ---  [신규 추가] 'Confirmed' 상태일 때  --- */}
                   {booking.status === 'Confirmed' && (
                     <CompleteButton
                       onClick={() => handleUpdateBookingStatus(booking.booking_id, 'complete')}
@@ -384,8 +353,6 @@ function GuideDashboard({ user, navigateTo }) {
                       {isProcessing ? '처리중...' : '여행 완료'}
                     </CompleteButton>
                   )}
-                  {/* ---  [신규 추가 완료]  --- */}
-
                 </InfoRight>
               </BookingDetails>
             </BookingItem>
@@ -395,6 +362,4 @@ function GuideDashboard({ user, navigateTo }) {
     </DashboardContainer>
   );
 }
-
 export default GuideDashboard;
-
