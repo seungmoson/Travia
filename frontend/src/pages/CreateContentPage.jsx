@@ -3,7 +3,6 @@ import React from 'react';
 import ContentForm from '../components/ContentForm.jsx';
 
 export default function CreateContentPage({ user, navigateTo, setShowAuthModal }) {
-    // 접근 제어
     if (!user?.isLoggedIn) {
         setShowAuthModal?.(true);
         return <div className="p-6">로그인이 필요합니다.</div>;
