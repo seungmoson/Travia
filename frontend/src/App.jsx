@@ -13,7 +13,7 @@ import './index.css';
 import AuthModal from './components/AuthModal.jsx';
 import SearchBar from './components/SearchBar.jsx';
 
-// [중요] 백엔드 API 주소 설정
+// 백엔드 API 주소 설정
 const API_BASE_URL = 'https://guidie.duckdns.org';
 
 const decodeToken = (token) => {
@@ -88,7 +88,7 @@ const App = () => {
         fetchOptions();
     }, []); 
 
-    // --- [최종 수정] 스크롤 올릴 때 확대 방지 (Top에서만 확대) ---
+    // 스크롤 올릴 때 확대 방지 (Top에서만 확대)
     useEffect(() => {
         const handleScroll = () => {
             if (isToggling.current) return;
@@ -120,12 +120,7 @@ const App = () => {
                 }
             } 
             // 3. 스크롤 올리는 중 (Up)
-            else {
-                // [수정 포인트] 올릴 때는 아무것도 하지 않음 (작은 상태 유지)
-                // 원래 있던 setIsExpanded(true) 코드를 삭제했습니다.
-                // 이제 사용자가 맨 위(0px)까지 가야만 헤더가 커집니다.
-            }
-
+            else {}
             lastScrollY.current = currentScrollY;
         };
 
@@ -156,7 +151,6 @@ const App = () => {
     }, []);
 
     // --- 핸들러 함수들 ---
-    
     const navigateTo = (page, contentId = null) => {
         const loginRequiredPages = ['booking', 'myPage', 'guideDashboard'];
         if (loginRequiredPages.includes(page) && !user.isLoggedIn) {
